@@ -1,5 +1,6 @@
 
 import telebot
+from django.template.defaultfilters import date
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, InputMediaPhoto
 
 from conf.settings import HOST, TELEGRAM_BOT_TOKEN, ADMINS, CHANNEL_ID
@@ -178,7 +179,7 @@ def my_ads(message):
         lines = []
         for i, ad in enumerate(ads, start=1):
             # inline monospace with Markdown
-            lines.append(f"`{i}. {ad.marka} ${ad.narx_usd} {ad.created_at}`")
+            lines.append(f"`{i}. {ad.marka} ${ad.narx_usd} {ad.created_at|date:\"d.m.y\"}`")
         ad_list_text = "📜 E'lonlaringiz ro'yxati:\n\n" + "\n".join(lines)
 
         # Numbered buttons where label = index, callback_data = real ad.id
