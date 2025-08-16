@@ -75,13 +75,13 @@ def step_keyboard():
 
 def ask_question(chat_id, step):
     questions = {
-        1: "📷 Telefon rasmlarini yuboring (kamida 4 ta, ko‘pi bilan 6 ta). Har birini alohida yuboring.",
-        2: "📱 Telefon markasini kiriting:",
-        3: "🛠 Holatini kiriting:",
-        4: "🔋 Batareka holatini kiriting:",
+        1: "📷 Telefon rasmlarini yuboring (kamida 4 ta, ko‘pi bilan 6 ta):",
+        2: "📱 Telefon markasini kiriting (masalan: Iphone 16; Redmi Note 14 pro):",
+        3: "🛠 Telefon holatini kiriting (masalan: Yangi; Yaxshi; O'rtacha):",
+        4: "🔋 Batareka sig'imini kiriting (masalan: 4500 mAH; 95%):",
         5: "🎨 Rangini kiriting:",
-        6: "📦 Komplekt haqida yozing:",
-        7: "💰 Narxni USD da kiriting:",
+        6: "📦 Karobka/dokument bormi? (Bor / Yo'q",
+        7: "💰 Narxni kiriting: (So'm / USD)",
         8: "♻️ Obmen bormi? (Ha / Yo‘q):",
         9: "🚩 Manzilni kiriting:",
         10: "📞 Telefon raqamingizni yuboring:",
@@ -409,6 +409,7 @@ def cb_admin_activate(call):
     ad_id = int(call.data.split(":")[1])
     try:
         ad = PhoneAd.objects.get(id=ad_id)
+        bot.send_message(chat_id=ad.user.telegram_id,text=f"`{ad.marka} {ad.narx_usd}` E'loningiz tasdiqlandi!", parse_mode="Markdown")
     except PhoneAd.DoesNotExist:
         bot.answer_callback_query(call.id, "E'lon topilmadi.")
         return
@@ -416,10 +417,13 @@ def cb_admin_activate(call):
     # Kanal uchun caption
     caption = (
         f"📱 <b>{ad.marka}</b>\n"
-        f"🛠 Holati: {ad.holati}   💰 Narx: ${ad.narx_usd}\n"
-        f"🔋 Batareka: {ad.batareka_holati}   🎨 Rang: {ad.rangi}\n"
+        f"🛠 Holati: {ad.holati}\n"  
+        f"💰 Narx: ${ad.narx_usd}\n"
+        f"🔋 Batareka: {ad.batareka_holati}\n"   
+        f"🎨 Rang: {ad.rangi}\n"
         f"📦 {ad.komplekt}\n"
-        f"📞 Tel: {ad.tel_raqam}   🚩 {ad.manzil}\n"
+        f"📞 Tel: {ad.tel_raqam}\n"   
+        f"🚩 {ad.manzil}\n"
         f"♻️ Obmen: {'Bor' if ad.obmen else 'Yo‘q'}"
     )
 
@@ -451,6 +455,8 @@ def cb_admin_delete(call):
     ad_id = int(call.data.split(":")[1])
     try:
         ad = PhoneAd.objects.get(id=ad_id)
+        bot.send_message(chat_id=ad.user.telegram_id, text=f"`{ad.marka} {ad.narx_usd}` E'loningiz tasdiqlandi!",
+                         parse_mode="Markdown")
     except PhoneAd.DoesNotExist:
         bot.answer_callback_query(call.id, "E'lon topilmadi.")
         return
