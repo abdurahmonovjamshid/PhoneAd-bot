@@ -178,7 +178,7 @@ def my_ads(message):
         lines = []
         for i, ad in enumerate(ads, start=1):
             # inline monospace with Markdown
-            lines.append(f"`{i}. {ad.marka} {ad.created_at.year} ${ad.narx_usd}`")
+            lines.append(f"`{i}. {ad.marka} ${ad.narx_usd} {ad.created_at}`")
         ad_list_text = "📜 E'lonlaringiz ro'yxati:\n\n" + "\n".join(lines)
 
         # Numbered buttons where label = index, callback_data = real ad.id
