@@ -17,7 +17,7 @@ class PhoneAdImageInline(admin.TabularInline):
 
 @admin.register(PhoneAd)
 class PhoneAdAdmin(admin.ModelAdmin):
-    list_display = ('marka', 'narx_usd', 'user', 'status', 'created_at')
+    list_display = ('marka', 'narx_usd_sum', 'user', 'status', 'created_at')
     list_filter = ('status', 'created_at', 'obmen')
     search_fields = ('marka', 'user__first_name', 'user__username', 'manzil', 'tel_raqam')
     inlines = [PhoneAdImageInline]
@@ -32,7 +32,7 @@ class PhoneAdAdmin(admin.ModelAdmin):
                 'batareka_holati',
                 'rangi',
                 'komplekt',
-                'narx_usd',
+                'narx_usd_sum',
                 'obmen',
                 'manzil',
                 'tel_raqam',
