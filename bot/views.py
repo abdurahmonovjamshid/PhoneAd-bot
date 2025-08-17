@@ -237,6 +237,31 @@ def send_ad_details(chat_id, ad: PhoneAd):
     else:
         bot.send_message(chat_id, caption, parse_mode="HTML")
 
+@bot.message_handler(func=lambda m: m.forward_from_chat is not None)
+def handle_forwarded_post(message):
+    channel_id = message.forward_from_chat.id
+    original_msg_id = message.forward_from_message_id
+
+    # Only allow specific admins
+    if message.from_user.id not in ADMINS and channel_id == CHANNEL_ID:
+        bot.reply_to(message, "❌ Sizda ruxsat yo'q.")
+        return
+
+    # Get original text and replace
+    old_text = message.text
+    if old_text and "#Продается" in old_text:
+        new_text = old_text.replace("#Продается", "#sotildi")
+
+        bot.edit_message_text(
+            new_text,
+            chat_id=channel_id,
+            message_id=original_msg_id
+        )
+        bot.reply_to(message, "✅ Post tahrir qilindi: #sotildi")
+    else:
+        bot.reply_to(message, "ℹ️ Bu postda #Продается yo'q.")
+
+
 @bot.message_handler(content_types=['text'])
 def handle_steps(message):
     tg_user = TgUser.objects.get(telegram_id=message.from_user.id)
@@ -510,10 +535,6 @@ def cb_admin_delete(call):
         pass
     bot.send_message(call.message.chat.id, "🗑 E'lon o‘chirildi.")
 
-
-from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
-from django.conf import settings
-
 # Command handler for "📜 Mening e'lonlarim"
 @bot.message_handler(func=lambda m: m.text == "📜 Mening e'lonlarim")
 def my_ads(message):
@@ -573,5 +594,32 @@ def send_ad_details(chat_id, ad: PhoneAd):
             bot.send_media_group(chat_id, media_group)
     else:
         bot.send_message(chat_id, caption, parse_mode="HTML")
+
+@bot.reaction_handler(func=lambda reaction: True)
+def handle_reaction(reaction):
+    user_id = reaction.user.id
+    chat_id = reaction.chat.id
+    message_id = reaction.message_id
+
+    # faqat kanalimizdagi reactionlarni olamiz
+    if chat_id == CHANNEL_ID and user_id in ADMINS:
+        try:
+            # eski captionni olish
+            msg = bot.get_chat_message(chat_id, message_id)
+            if not msg.caption:
+                return
+
+            new_caption = msg.caption.replace("#Продается", "#Sotildi")
+
+            if new_caption != msg.caption:
+                bot.edit_message_caption(
+                    chat_id=chat_id,
+                    message_id=message_id,
+                    caption=new_caption,
+                    parse_mode="HTML"
+                )
+        except Exception as e:
+            print("Reactionda xatolik:", e)
+
 
 bot.set_webhook(url="https://"+HOST+"/webhook/")
