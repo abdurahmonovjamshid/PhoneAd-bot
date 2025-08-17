@@ -140,7 +140,7 @@ def cancel_or_back(message):
             tg_user.step = 0
             tg_user.save()
 
-@bot.message_handler(func=lambda m: m.forward_from_chat is not None)
+@bot.message_handler(func=lambda m: m.forward_from_chat is not None, content_types=['text','photo'])
 def handle_forwarded_post(message):
     channel_id = message.forward_from_chat.id
     original_msg_id = message.forward_from_message_id
