@@ -595,31 +595,5 @@ def send_ad_details(chat_id, ad: PhoneAd):
     else:
         bot.send_message(chat_id, caption, parse_mode="HTML")
 
-@bot.reaction_handler(func=lambda reaction: True)
-def handle_reaction(reaction):
-    user_id = reaction.user.id
-    chat_id = reaction.chat.id
-    message_id = reaction.message_id
-
-    # faqat kanalimizdagi reactionlarni olamiz
-    if chat_id == CHANNEL_ID and user_id in ADMINS:
-        try:
-            # eski captionni olish
-            msg = bot.get_chat_message(chat_id, message_id)
-            if not msg.caption:
-                return
-
-            new_caption = msg.caption.replace("#Продается", "#Sotildi")
-
-            if new_caption != msg.caption:
-                bot.edit_message_caption(
-                    chat_id=chat_id,
-                    message_id=message_id,
-                    caption=new_caption,
-                    parse_mode="HTML"
-                )
-        except Exception as e:
-            print("Reactionda xatolik:", e)
-
 
 bot.set_webhook(url="https://"+HOST+"/webhook/")
