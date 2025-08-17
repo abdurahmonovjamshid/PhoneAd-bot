@@ -41,7 +41,7 @@ class PhoneAd(models.Model):
     batareka_holati = models.CharField(max_length=255)  # 🔋 batareka holati
     rangi = models.CharField(max_length=50)  # 🎨 rangi
     komplekt = models.CharField(max_length=255)  # 📦 & 📑 bor yoki yo'q
-    narx_usd = models.DecimalField(max_digits=10, decimal_places=2)  # 💰 dollarda
+    narx_usd_sum = models.CharField(max_length=50)  # 💰 dollarda sumda
     obmen = models.BooleanField(default=False)  # ♻️ obmen bor yo'qligi
     manzil = models.CharField(max_length=255)  # 🚩 manzil
     tel_raqam = models.CharField(max_length=20)  # 📞 telefon raqam

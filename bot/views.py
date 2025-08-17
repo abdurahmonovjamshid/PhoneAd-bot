@@ -1,3 +1,4 @@
+import re
 
 import telebot
 from django.template.defaultfilters import date
@@ -275,11 +276,39 @@ def handle_steps(message):
         tg_user.step = 7
 
     elif tg_user.step == 7:
+        text = message.text.strip().lower()
+
+        # Normalize input (remove commas, extra spaces)
+        text_clean = text.replace(",", "").replace(" ", "")
+
+        currency = None
+        amount = None
+
+        # Detect USD
+        if text_clean.endswith("$") or text_clean.endswith("usd"):
+            currency = "USD"
+            text_clean = text_clean.replace("$", "").replace("usd", "")
+        # Detect UZS
+        elif text_clean.endswith("so'm") or text_clean.endswith("som") or text_clean.endswith("uzs"):
+            currency = "UZS"
+            text_clean = text_clean.replace("so'm", "").replace("som", "").replace("uzs", "")
+        else:
+            # If only numbers, default to USD
+            if text_clean.isdigit():
+                currency = "USD"
+            else:
+                bot.send_message(message.chat.id,
+                                 "❌ Narxni raqam va valyuta bilan kiriting (masalan: 1500 $, 1200300 so'm).")
+                return
+
         try:
-            ad.narx_usd = float(message.text)
+            amount = float(text_clean)
         except ValueError:
-            bot.send_message(message.chat.id, "❌ Faqat raqam kiriting.")
+            bot.send_message(message.chat.id, "❌ Narx noto‘g‘ri kiritildi. Masalan: 1500 $, 1200300 so'm")
             return
+
+        # Save in model
+        ad.narx_usd_sum = f"{amount} {currency}"
         ad.save()
         tg_user.step = 8
 
@@ -296,7 +325,15 @@ def handle_steps(message):
 
 
     elif tg_user.step == 10:
-        ad.tel_raqam = message.text.strip()
+        phone = message.text.strip()
+        pattern = r"^\+998\d{9}$"  # +998 va keyin 9 ta raqam
+        if not re.match(pattern, phone):
+            bot.send_message(
+                message.chat.id,
+                "❌ Telefon raqamini to‘g‘ri kiriting. Masalan: +998901234567"
+            )
+            return
+        ad.tel_raqam = phone
         ad.save()
         tg_user.step = 0
         tg_user.save()
