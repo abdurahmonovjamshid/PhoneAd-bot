@@ -180,7 +180,7 @@ def my_ads(message):
         lines = []
         for i, ad in enumerate(ads, start=1):
             # inline monospace with Markdown
-            lines.append(f"""`{i}. {ad.marka} ${ad.narx_usd_sum} {ad.created_at.strftime("%d.%m.%y")}`""")
+            lines.append(f"""`{i}. {ad.marka} {ad.narx_usd_sum} {ad.created_at.strftime("%d.%m.%y")}`""")
         ad_list_text = "📜 E'lonlaringiz ro'yxati:\n\n" + "\n".join(lines)
 
         # Numbered buttons where label = index, callback_data = real ad.id
@@ -212,7 +212,7 @@ def send_ad_details(chat_id, ad: PhoneAd):
     kanal_status = "✅" if ad.status == "active" else "❌"
     caption = (
         f"📱 <b>{ad.marka}</b>\n"
-        f"💰 Narx: ${ad.narx_usd_sum}\n"
+        f"💰 Narx: {ad.narx_usd_sum}\n"
         f"🎨 Rang: {ad.rangi}\n"
         f"📦 Komplekt: {ad.komplekt}\n"
         f"🚩 Manzil: {ad.manzil}\n"
@@ -302,7 +302,7 @@ def handle_steps(message):
                 return
 
         try:
-            amount = float(text_clean)
+            amount = int(text_clean)
         except ValueError:
             bot.send_message(message.chat.id, "❌ Narx noto‘g‘ri kiritildi. Masalan: 1500 $, 1200300 so'm")
             return
@@ -344,7 +344,7 @@ def handle_steps(message):
             f"🔋 Batareka: {ad.batareka_holati}\n"
             f"🎨 Rang: {ad.rangi}\n"
             f"📦 Komplekt: {ad.komplekt}\n"
-            f"💰 Narx: ${ad.narx_usd_sum}\n"
+            f"💰 Narx: {ad.narx_usd_sum}\n"
             f"♻️ Obmen: {'Bor' if ad.obmen else 'Yo‘q'}\n"
             f"🚩 Manzil: {ad.manzil}\n"
             f"📞 Tel: {ad.tel_raqam}"
@@ -389,7 +389,7 @@ def cb_user_send_to_admin(call):
         f"🔋 Batareka: {ad.batareka_holati}\n"
         f"🎨 Rang: {ad.rangi}\n"
         f"📦 Komplekt: {ad.komplekt}\n"
-        f"💰 Narx: ${ad.narx_usd_sum}\n"
+        f"💰 Narx: {ad.narx_usd_sum}\n"
         f"♻️ Obmen: {'Bor' if ad.obmen else 'Yo‘q'}\n"
         f"🚩 Manzil: {ad.manzil}\n"
         f"📞 Tel: {ad.tel_raqam}"
@@ -457,7 +457,7 @@ def cb_admin_activate(call):
         f"#Продается\n"
         f"📱 <b>{ad.marka}</b>\n"
         f"🛠 Holati: {ad.holati}\n"  
-        f"💰 Narx: ${ad.narx_usd_sum}\n"
+        f"💰 Narx: {ad.narx_usd_sum}\n"
         f"🔋 Batareka: {ad.batareka_holati}\n"   
         f"🎨 Rang: {ad.rangi}\n"
         f"📦 {ad.komplekt}\n"
@@ -554,7 +554,7 @@ def send_ad_details(chat_id, ad: PhoneAd):
     kanal_status = "✅" if ad.status == "active" else "❌"
     caption = (
         f"📱 <b>{ad.marka}</b>\n"
-        f"💰 Narx: ${ad.narx_usd_sum}\n"
+        f"💰 Narx: {ad.narx_usd_sum}\n"
         f"🎨 Rang: {ad.rangi}\n"
         f"📦 Komplekt: {ad.komplekt}\n"
         f"🚩 Manzil: {ad.manzil}\n"
