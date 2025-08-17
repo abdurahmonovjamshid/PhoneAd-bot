@@ -52,7 +52,7 @@ class PhoneAd(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.marka} - ${self.narx_usd}"
+        return f"{self.marka} - ${self.narx_usd_sum}"
 
 
 class PhoneAdImage(models.Model):

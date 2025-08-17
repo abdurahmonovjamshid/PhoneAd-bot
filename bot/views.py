@@ -110,7 +110,7 @@ def start_ad_process(message):
         batareka_holati='',
         rangi='',
         komplekt='',
-        narx_usd=0,
+        narx_usd_sum=0,
         obmen=False,
         manzil='',
         tel_raqam='',
@@ -180,7 +180,7 @@ def my_ads(message):
         lines = []
         for i, ad in enumerate(ads, start=1):
             # inline monospace with Markdown
-            lines.append(f"""`{i}. {ad.marka} ${ad.narx_usd} {ad.created_at.strftime("%d.%m.%y")}`""")
+            lines.append(f"""`{i}. {ad.marka} ${ad.narx_usd_sum} {ad.created_at.strftime("%d.%m.%y")}`""")
         ad_list_text = "📜 E'lonlaringiz ro'yxati:\n\n" + "\n".join(lines)
 
         # Numbered buttons where label = index, callback_data = real ad.id
@@ -212,7 +212,7 @@ def send_ad_details(chat_id, ad: PhoneAd):
     kanal_status = "✅" if ad.status == "active" else "❌"
     caption = (
         f"📱 <b>{ad.marka}</b>\n"
-        f"💰 Narx: ${ad.narx_usd}\n"
+        f"💰 Narx: ${ad.narx_usd_sum}\n"
         f"🎨 Rang: {ad.rangi}\n"
         f"📦 Komplekt: {ad.komplekt}\n"
         f"🚩 Manzil: {ad.manzil}\n"
@@ -344,7 +344,7 @@ def handle_steps(message):
             f"🔋 Batareka: {ad.batareka_holati}\n"
             f"🎨 Rang: {ad.rangi}\n"
             f"📦 Komplekt: {ad.komplekt}\n"
-            f"💰 Narx: ${ad.narx_usd}\n"
+            f"💰 Narx: ${ad.narx_usd_sum}\n"
             f"♻️ Obmen: {'Bor' if ad.obmen else 'Yo‘q'}\n"
             f"🚩 Manzil: {ad.manzil}\n"
             f"📞 Tel: {ad.tel_raqam}"
@@ -389,7 +389,7 @@ def cb_user_send_to_admin(call):
         f"🔋 Batareka: {ad.batareka_holati}\n"
         f"🎨 Rang: {ad.rangi}\n"
         f"📦 Komplekt: {ad.komplekt}\n"
-        f"💰 Narx: ${ad.narx_usd}\n"
+        f"💰 Narx: ${ad.narx_usd_sum}\n"
         f"♻️ Obmen: {'Bor' if ad.obmen else 'Yo‘q'}\n"
         f"🚩 Manzil: {ad.manzil}\n"
         f"📞 Tel: {ad.tel_raqam}"
@@ -447,7 +447,7 @@ def cb_admin_activate(call):
     ad_id = int(call.data.split(":")[1])
     try:
         ad = PhoneAd.objects.get(id=ad_id)
-        bot.send_message(chat_id=ad.user.telegram_id,text=f"`{ad.marka} {ad.narx_usd}` E'loningiz tasdiqlandi!", parse_mode="Markdown")
+        bot.send_message(chat_id=ad.user.telegram_id,text=f"`{ad.marka} {ad.narx_usd_sum}` E'loningiz tasdiqlandi!", parse_mode="Markdown")
     except PhoneAd.DoesNotExist:
         bot.answer_callback_query(call.id, "E'lon topilmadi.")
         return
@@ -457,7 +457,7 @@ def cb_admin_activate(call):
         f"#Продается\n"
         f"📱 <b>{ad.marka}</b>\n"
         f"🛠 Holati: {ad.holati}\n"  
-        f"💰 Narx: ${ad.narx_usd}\n"
+        f"💰 Narx: ${ad.narx_usd_sum}\n"
         f"🔋 Batareka: {ad.batareka_holati}\n"   
         f"🎨 Rang: {ad.rangi}\n"
         f"📦 {ad.komplekt}\n"
@@ -496,7 +496,7 @@ def cb_admin_delete(call):
     ad_id = int(call.data.split(":")[1])
     try:
         ad = PhoneAd.objects.get(id=ad_id)
-        bot.send_message(chat_id=ad.user.telegram_id, text=f"`{ad.marka} {ad.narx_usd}` E'loningiz tasdiqlandi!",
+        bot.send_message(chat_id=ad.user.telegram_id, text=f"`{ad.marka} {ad.narx_usd_sum}` E'loningiz tasdiqlandi!",
                          parse_mode="Markdown")
     except PhoneAd.DoesNotExist:
         bot.answer_callback_query(call.id, "E'lon topilmadi.")
@@ -554,7 +554,7 @@ def send_ad_details(chat_id, ad: PhoneAd):
     kanal_status = "✅" if ad.status == "active" else "❌"
     caption = (
         f"📱 <b>{ad.marka}</b>\n"
-        f"💰 Narx: ${ad.narx_usd}\n"
+        f"💰 Narx: ${ad.narx_usd_sum}\n"
         f"🎨 Rang: {ad.rangi}\n"
         f"📦 Komplekt: {ad.komplekt}\n"
         f"🚩 Manzil: {ad.manzil}\n"
