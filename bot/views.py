@@ -142,11 +142,12 @@ def cancel_or_back(message):
 
 @bot.message_handler(func=lambda m: m.forward_from_chat is not None, content_types=['text','photo'])
 def handle_forwarded_post(message):
-    channel_id = message.forward_from_chat.id
+    channelid = message.forward_from_chat.id
     original_msg_id = message.forward_from_message_id
 
     # Only allow specific admins
-    if message.from_user.id not in ADMINS or channel_id != CHANNEL_ID:
+    if message.from_user.id not in ADMINS or channelid != CHANNEL_ID:
+        bot.reply_to(message,f"{message.from_user.id} {ADMINS} {channelid} {CHANNEL_ID}")
         bot.reply_to(message, "❌ Sizda ruxsat yo'q.")
         return
 
