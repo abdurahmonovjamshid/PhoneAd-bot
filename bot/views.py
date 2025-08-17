@@ -155,7 +155,7 @@ def handle_forwarded_post(message):
         old_text = message.text
         if "#Продается" in old_text:
             new_text = old_text.replace("#Продается", "#sotildi")
-            bot.edit_message_text(new_text, chat_id=channel_id, message_id=original_msg_id)
+            bot.edit_message_text(new_text, chat_id=channelid, message_id=original_msg_id)
             bot.reply_to(message, "✅ Post tahrir qilindi: #sotildi")
         else:
             bot.reply_to(message, "ℹ️ Bu postda #Продается yo'q.")
@@ -165,7 +165,7 @@ def handle_forwarded_post(message):
         old_caption = message.caption
         if "#Продается" in old_caption:
             new_caption = old_caption.replace("#Продается", "#sotildi")
-            bot.edit_message_caption(new_caption, chat_id=channel_id, message_id=original_msg_id)
+            bot.edit_message_caption(new_caption, chat_id=channelid, message_id=original_msg_id)
             bot.reply_to(message, "✅ Post tahrir qilindi: #sotildi")
         else:
             bot.reply_to(message, "ℹ️ Bu postda #Продается yo'q.")
