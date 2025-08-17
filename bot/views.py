@@ -146,7 +146,7 @@ def handle_forwarded_post(message):
     original_msg_id = message.forward_from_message_id
 
     # Only allow specific admins
-    if str(message.from_user.id) not in ADMINS or str(channelid) != CHANNEL_ID:
+    if str(message.from_user.id) not in ADMINS or str(channelid) != CHANNEL_ID[0]:
         bot.reply_to(message, "❌ Sizda ruxsat yo'q.")
         return
 
