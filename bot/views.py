@@ -140,6 +140,30 @@ def cancel_or_back(message):
             tg_user.step = 0
             tg_user.save()
 
+@bot.message_handler(func=lambda m: m.forward_from_chat is not None)
+def handle_forwarded_post(message):
+    channel_id = message.forward_from_chat.id
+    original_msg_id = message.forward_from_message_id
+
+    # Only allow specific admins
+    if message.from_user.id not in ADMINS and channel_id == CHANNEL_ID:
+        bot.reply_to(message, "❌ Sizda ruxsat yo'q.")
+        return
+
+    # Get original text and replace
+    old_text = message.text
+    if old_text and "#Продается" in old_text:
+        new_text = old_text.replace("#Продается", "#sotildi")
+
+        bot.edit_message_text(
+            new_text,
+            chat_id=channel_id,
+            message_id=original_msg_id
+        )
+        bot.reply_to(message, "✅ Post tahrir qilindi: #sotildi")
+    else:
+        bot.reply_to(message, "ℹ️ Bu postda #Продается yo'q.")
+
 
 @bot.message_handler(content_types=['photo'])
 def handle_photos(message):
@@ -236,31 +260,6 @@ def send_ad_details(chat_id, ad: PhoneAd):
             bot.send_media_group(chat_id, media_group)
     else:
         bot.send_message(chat_id, caption, parse_mode="HTML")
-
-@bot.message_handler(func=lambda m: m.forward_from_chat is not None)
-def handle_forwarded_post(message):
-    channel_id = message.forward_from_chat.id
-    original_msg_id = message.forward_from_message_id
-
-    # Only allow specific admins
-    if message.from_user.id not in ADMINS and channel_id == CHANNEL_ID:
-        bot.reply_to(message, "❌ Sizda ruxsat yo'q.")
-        return
-
-    # Get original text and replace
-    old_text = message.text
-    if old_text and "#Продается" in old_text:
-        new_text = old_text.replace("#Продается", "#sotildi")
-
-        bot.edit_message_text(
-            new_text,
-            chat_id=channel_id,
-            message_id=original_msg_id
-        )
-        bot.reply_to(message, "✅ Post tahrir qilindi: #sotildi")
-    else:
-        bot.reply_to(message, "ℹ️ Bu postda #Продается yo'q.")
-
 
 @bot.message_handler(content_types=['text'])
 def handle_steps(message):
