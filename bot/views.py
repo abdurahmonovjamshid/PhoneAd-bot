@@ -146,29 +146,34 @@ def handle_forwarded_post(message):
     original_msg_id = message.forward_from_message_id
 
     # Only allow specific admins
-    if message.from_user.id not in ADMINS and channel_id == CHANNEL_ID:
+    if message.from_user.id not in ADMINS or channel_id != CHANNEL_ID:
         bot.reply_to(message, "❌ Sizda ruxsat yo'q.")
         return
 
-    # Get original text and replace
-    old_text = message.text
-    if old_text and "#Продается" in old_text:
-        new_text = old_text.replace("#Продается", "#sotildi")
+    # Handle text messages
+    if message.text:
+        old_text = message.text
+        if "#Продается" in old_text:
+            new_text = old_text.replace("#Продается", "#sotildi")
+            bot.edit_message_text(new_text, chat_id=channel_id, message_id=original_msg_id)
+            bot.reply_to(message, "✅ Post tahrir qilindi: #sotildi")
+        else:
+            bot.reply_to(message, "ℹ️ Bu postda #Продается yo'q.")
 
-        bot.edit_message_text(
-            new_text,
-            chat_id=channel_id,
-            message_id=original_msg_id
-        )
-        bot.reply_to(message, "✅ Post tahrir qilindi: #sotildi")
-    else:
-        bot.reply_to(message, "ℹ️ Bu postda #Продается yo'q.")
+    # Handle media with caption
+    elif message.caption:
+        old_caption = message.caption
+        if "#Продается" in old_caption:
+            new_caption = old_caption.replace("#Продается", "#sotildi")
+            bot.edit_message_caption(new_caption, chat_id=channel_id, message_id=original_msg_id)
+            bot.reply_to(message, "✅ Post tahrir qilindi: #sotildi")
+        else:
+            bot.reply_to(message, "ℹ️ Bu postda #Продается yo'q.")
 
 
 @bot.message_handler(content_types=['photo'])
 def handle_photos(message):
     tg_user = TgUser.objects.get(telegram_id=message.from_user.id)
-
     if tg_user.step != 1:
         bot.send_message(message.chat.id, "📌 Iltimos, hozir rasm emas, so‘ralgan ma'lumotni yuboring.")
         return
