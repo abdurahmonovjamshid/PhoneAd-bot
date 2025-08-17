@@ -417,15 +417,18 @@ def cb_admin_activate(call):
 
     # Kanal uchun caption
     caption = (
+        f"#Продается"
         f"📱 <b>{ad.marka}</b>\n"
         f"🛠 Holati: {ad.holati}\n"  
         f"💰 Narx: ${ad.narx_usd}\n"
         f"🔋 Batareka: {ad.batareka_holati}\n"   
         f"🎨 Rang: {ad.rangi}\n"
         f"📦 {ad.komplekt}\n"
-        f"📞 Tel: {ad.tel_raqam}\n"   
         f"🚩 {ad.manzil}\n"
-        f"♻️ Obmen: {'Bor' if ad.obmen else 'Yo‘q'}"
+        f"♻️ Obmen: {'Bor' if ad.obmen else 'Yo‘q'}\n"
+        f"📞 Tel: {ad.tel_raqam}\n\n"
+        f"Telefon adminga tegishli emas 🚩🚩\n"
+        f"Zaklat bilan savdo qilmang🫱🏻‍🫲🏽"
     )
 
     imgs = list(ad.images.all())
