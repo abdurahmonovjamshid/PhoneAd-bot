@@ -266,6 +266,25 @@ def send_ad_details(chat_id, ad: PhoneAd):
     else:
         bot.send_message(chat_id, caption, parse_mode="HTML")
 
+@bot.message_handler(func=lambda message: message.text == "📞 Admin bilan bog‘lanish")
+def contact_admins(message):
+    markup = types.InlineKeyboardMarkup()
+
+    admins = ["ayfon_ol", "ferrezis"]
+
+    for username in admins:
+        btn = types.InlineKeyboardButton(
+            text=f"@{username}",
+            url=f"https://t.me/{username}"
+        )
+        markup.add(btn)
+
+    bot.send_message(
+        message.chat.id,
+        "Adminlar bilan bog‘lanishingiz mumkin 👇",
+        reply_markup=markup
+    )
+
 @bot.message_handler(content_types=['text'])
 def handle_steps(message):
     tg_user = TgUser.objects.get(telegram_id=message.from_user.id)
