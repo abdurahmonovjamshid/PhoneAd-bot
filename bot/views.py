@@ -495,18 +495,29 @@ def cb_admin_activate(call):
     ad_id = int(call.data.split(":")[1])
     try:
         ad = PhoneAd.objects.get(id=ad_id)
-        bot.send_message(chat_id=ad.user.telegram_id,text=f"`{ad.marka} {ad.narx_usd_sum}` E'loningiz tasdiqlandi!", parse_mode="Markdown")
     except PhoneAd.DoesNotExist:
-        bot.answer_callback_query(call.id, "E'lon topilmadi.")
+        bot.answer_callback_query(call.id, "❌ E'lon topilmadi.")
         return
+
+    # ✅ Prevent duplicates
+    if ad.is_published:
+        bot.answer_callback_query(call.id, "⚠️ Bu e'lon allaqachon kanalga joylangan.")
+        return
+
+    # Owner notification
+    bot.send_message(
+        chat_id=ad.user.telegram_id,
+        text=f"`{ad.marka} {ad.narx_usd_sum}` E'loningiz tasdiqlandi!",
+        parse_mode="Markdown"
+    )
 
     # Kanal uchun caption
     caption = (
         f"#Продается\n"
         f"📱 <b>{ad.marka}</b>\n"
-        f"🛠 Holati: {ad.holati}\n"  
+        f"🛠 Holati: {ad.holati}\n"
         f"💰 Narx: {ad.narx_usd_sum}\n"
-        f"🔋 Batareka: {ad.batareka_holati}\n"   
+        f"🔋 Batareka: {ad.batareka_holati}\n"
         f"🎨 Rang: {ad.rangi}\n"
         f"📦 {ad.komplekt}\n"
         f"🚩 {ad.manzil}\n"
@@ -524,12 +535,13 @@ def cb_admin_activate(call):
                 media.append(types.InputMediaPhoto(media=img.file_id, caption=caption, parse_mode='HTML'))
             else:
                 media.append(types.InputMediaPhoto(media=img.file_id))
-        bot.send_media_group(CHANNEL_ID, media)
+        bot.send_media_group(CHANNEL_ID[0], media)
     else:
-        bot.send_message(CHANNEL_ID, caption, parse_mode='HTML')
+        bot.send_message(CHANNEL_ID[0], caption, parse_mode='HTML')
 
-    # Statusni yangilab qo‘yamiz (ixtiyoriy, lekin foydali)
+    # Mark as published ✅
     ad.status = 'active'
+    ad.is_published = True
     ad.save()
 
     bot.answer_callback_query(call.id, "Kanalga joylandi ✅")

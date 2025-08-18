@@ -50,6 +50,7 @@ class PhoneAd(models.Model):
     status = models.CharField(max_length=10, choices=SELL_STATUS_CHOICES, default='active')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    is_published = models.BooleanField(default=False)
 
     def __str__(self):
         return f"{self.marka} - ${self.narx_usd_sum}"
