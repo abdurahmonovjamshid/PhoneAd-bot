@@ -16,10 +16,8 @@ class TgUser(models.Model):
     deleted = models.BooleanField(default=False)
 
     def __str__(self):
-        if self.last_name:
-            return f'{self.first_name[:25]} {self.last_name[:25]}'
-        else:
-            return f'{self.first_name[:25]}'
+        full_name = f"{self.first_name} {self.last_name or ''}".strip()
+        return (full_name[:30] + '...') if len(full_name) > 30 else full_name
 
 from django.db import models
 
