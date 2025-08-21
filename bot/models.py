@@ -17,9 +17,9 @@ class TgUser(models.Model):
 
     def __str__(self):
         if self.last_name:
-            return f'{self.first_name:25} {self.last_name:25}'
+            return f'{self.first_name[:25]} {self.last_name[:25]}'
         else:
-            return f'{self.first_name:25}'
+            return f'{self.first_name[:25]}'
 
 from django.db import models
 
