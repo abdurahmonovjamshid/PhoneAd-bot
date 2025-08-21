@@ -39,8 +39,8 @@ class TgUserAdmin(admin.ModelAdmin):
 # --- PhoneAd Admin ---
 @admin.register(PhoneAd)
 class PhoneAdAdmin(admin.ModelAdmin):
-    list_display = ('marka', 'narx_usd_sum', 'user', 'status', 'obmen', 'created_at')
-    list_filter = ('status', 'obmen', 'created_at', 'rangi', 'holati')
+    list_display = ('marka', 'narx_usd_sum', 'user', 'status', 'obmen', 'created_at', 'is_published')
+    list_filter = ('status', 'obmen', 'created_at', 'rangi', 'holati', 'is_published')
     search_fields = ('marka', 'user__first_name', 'user__username', 'manzil', 'tel_raqam')
     inlines = [PhoneAdImageInline]
     readonly_fields = ('created_at', 'updated_at')
@@ -59,6 +59,7 @@ class PhoneAdAdmin(admin.ModelAdmin):
                 'manzil',
                 'tel_raqam',
                 'status',
+                'is_published',
             )
         }),
         ('Timestamps', {
