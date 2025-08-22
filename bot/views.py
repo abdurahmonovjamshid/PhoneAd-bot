@@ -395,7 +395,8 @@ def handle_steps(message):
             f"💰 Narx: {ad.narx_usd_sum}\n"
             f"♻️ Obmen: {'Bor' if ad.obmen else 'Yo‘q'}\n"
             f"🚩 Manzil: {ad.manzil}\n"
-            f"📞 Tel: {ad.tel_raqam}"
+            f"📞 Tel: {ad.tel_raqam}\n"
+            f"👤 @{ad.user.username}"
         )
         photos = list(ad.images.all())
         if photos:
@@ -441,7 +442,7 @@ def cb_user_send_to_admin(call):
         f"♻️ Obmen: {'Bor' if ad.obmen else 'Yo‘q'}\n"
         f"🚩 Manzil: {ad.manzil}\n"
         f"📞 Tel: {ad.tel_raqam}\n"
-        f"👤 {ad.user.username}"
+        f"👤 @{ad.user.username}"
     )
 
     admin_kb = types.InlineKeyboardMarkup()
@@ -523,7 +524,8 @@ def cb_admin_activate(call):
         f"📦 {ad.komplekt}\n"
         f"🚩 {ad.manzil}\n"
         f"♻️ Obmen: {'Bor' if ad.obmen else 'Yo‘q'}\n"
-        f"📞 Tel: {ad.tel_raqam}\n\n"
+        f"📞 Tel: {ad.tel_raqam}\n"
+        f"👤 @{ad.user.username}\n\n"
         f"Telefon adminga tegishli emas 🚩\n"
         f"Zaklat bilan savdo qilmang🫱🏻‍🫲🏽"
     )
