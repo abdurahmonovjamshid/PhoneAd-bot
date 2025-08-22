@@ -396,8 +396,8 @@ def handle_steps(message):
             f"♻️ Obmen: {'Bor' if ad.obmen else 'Yo‘q'}\n"
             f"🚩 Manzil: {ad.manzil}\n"
             f"📞 Tel: {ad.tel_raqam}"
-            f"\n{f'👤 @{ad.user.username}' if ad.user.username else ''}"
-            f"\n\nTelefon adminga tegishli emas 🚩\n"
+            f"""\n{f"👤 @{ad.user.username}" if ad.user.username else ""}"""
+            f"\nTelefon adminga tegishli emas 🚩\n"
             f"Zaklat bilan savdo qilmang🫱🏻‍🫲🏽\n"
             f"@IS_telefonsavdo_bot"
         )
@@ -445,8 +445,8 @@ def cb_user_send_to_admin(call):
         f"♻️ Obmen: {'Bor' if ad.obmen else 'Yo‘q'}\n"
         f"🚩 Manzil: {ad.manzil}\n"
         f"📞 Tel: {ad.tel_raqam}"
-        f"""{f"\n👤 @{ad.user.username}" if ad.user.username else ""}"""
-        f"\n\nTelefon adminga tegishli emas 🚩\n"
+        f"""\n{f"👤 @{ad.user.username}" if ad.user.username else ""}"""
+        f"\nTelefon adminga tegishli emas 🚩\n"
         f"Zaklat bilan savdo qilmang🫱🏻‍🫲🏽\n"
         f"@IS_telefonsavdo_bot"
     )
@@ -531,8 +531,8 @@ def cb_admin_activate(call):
         f"🚩 {ad.manzil}\n"
         f"♻️ Obmen: {'Bor' if ad.obmen else 'Yo‘q'}\n"
         f"📞 Tel: {ad.tel_raqam}"
-        f"\n{f'👤 @{ad.user.username}' if ad.user.username else ''}"
-        f"\n\nTelefon adminga tegishli emas 🚩\n"
+        f"""\n{f"👤 @{ad.user.username}" if ad.user.username else ""}"""
+        f"\nTelefon adminga tegishli emas 🚩\n"
         f"Zaklat bilan savdo qilmang🫱🏻‍🫲🏽\n"
         f"@IS_telefonsavdo_bot"
     )
