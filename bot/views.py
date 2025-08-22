@@ -440,7 +440,8 @@ def cb_user_send_to_admin(call):
         f"💰 Narx: {ad.narx_usd_sum}\n"
         f"♻️ Obmen: {'Bor' if ad.obmen else 'Yo‘q'}\n"
         f"🚩 Manzil: {ad.manzil}\n"
-        f"📞 Tel: {ad.tel_raqam}"
+        f"📞 Tel: {ad.tel_raqam}\n"
+        f"👤 {ad.user.username}"
     )
 
     admin_kb = types.InlineKeyboardMarkup()
