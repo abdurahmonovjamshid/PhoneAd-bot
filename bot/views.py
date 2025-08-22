@@ -396,10 +396,13 @@ def handle_steps(message):
             f"♻️ Obmen: {'Bor' if ad.obmen else 'Yo‘q'}\n"
             f"🚩 Manzil: {ad.manzil}\n"
             f"📞 Tel: {ad.tel_raqam}\n"
-            f"""{f"👤 @{ad.user.username}" if ad.user.username else ""}\n"""
-            f"\nTelefon adminga tegishli emas 🚩\n"
-            f"Zaklat bilan savdo qilmang🫱🏻‍🫲🏽\n"
-            f"@IS_telefonsavdo_bot"
+            f"{'👤 @' + ad.user.username if ad.user.username else ''}"
+            + ("\n" if ad.user.username else "")
+                + (
+                "Telefon adminga tegishli emas 🚩\n"
+                "Zaklat bilan savdo qilmang🫱🏻‍🫲🏽\n"
+                "@IS_telefonsavdo_bot"
+                )
         )
         photos = list(ad.images.all())
         if photos:
@@ -445,10 +448,13 @@ def cb_user_send_to_admin(call):
         f"♻️ Obmen: {'Bor' if ad.obmen else 'Yo‘q'}\n"
         f"🚩 Manzil: {ad.manzil}\n"
         f"📞 Tel: {ad.tel_raqam}\n"
-        f"""{f"👤 @{ad.user.username}" if ad.user.username else ""}\n"""
-        f"\nTelefon adminga tegishli emas 🚩\n"
-        f"Zaklat bilan savdo qilmang🫱🏻‍🫲🏽\n"
-        f"@IS_telefonsavdo_bot"
+        f"{'👤 @' + ad.user.username if ad.user.username else ''}"
+            + ("\n" if ad.user.username else "")
+                + (
+                "Telefon adminga tegishli emas 🚩\n"
+                "Zaklat bilan savdo qilmang🫱🏻‍🫲🏽\n"
+                "@IS_telefonsavdo_bot"
+                )
     )
 
     admin_kb = types.InlineKeyboardMarkup()
@@ -531,10 +537,13 @@ def cb_admin_activate(call):
         f"🚩 {ad.manzil}\n"
         f"♻️ Obmen: {'Bor' if ad.obmen else 'Yo‘q'}\n"
         f"📞 Tel: {ad.tel_raqam}\n"
-        f"""{f"👤 @{ad.user.username}" if ad.user.username else ""}\n"""
-        f"\nTelefon adminga tegishli emas 🚩\n"
-        f"Zaklat bilan savdo qilmang🫱🏻‍🫲🏽\n"
-        f"@IS_telefonsavdo_bot"
+        f"{'👤 @' + ad.user.username if ad.user.username else ''}"
+            + ("\n" if ad.user.username else "")
+                + (
+                "Telefon adminga tegishli emas 🚩\n"
+                "Zaklat bilan savdo qilmang🫱🏻‍🫲🏽\n"
+                "@IS_telefonsavdo_bot"
+                )
     )
 
     imgs = list(ad.images.all())
