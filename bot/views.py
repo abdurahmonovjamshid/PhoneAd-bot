@@ -399,7 +399,7 @@ def handle_steps(message):
             f"\n{f'👤 @{ad.user.username}' if ad.user.username else ''}"
             f"\n\nTelefon adminga tegishli emas 🚩\n"
             f"Zaklat bilan savdo qilmang🫱🏻‍🫲🏽\n"
-            f"e'lon berish: @IS_telefonsavdo_bot"
+            f"@IS_telefonsavdo_bot"
         )
         photos = list(ad.images.all())
         if photos:
@@ -445,10 +445,10 @@ def cb_user_send_to_admin(call):
         f"♻️ Obmen: {'Bor' if ad.obmen else 'Yo‘q'}\n"
         f"🚩 Manzil: {ad.manzil}\n"
         f"📞 Tel: {ad.tel_raqam}"
-        f"\n{f'👤 @{ad.user.username}' if ad.user.username else ''}"
+        f"""{f"\n👤 @{ad.user.username}" if ad.user.username else ""}"""
         f"\n\nTelefon adminga tegishli emas 🚩\n"
         f"Zaklat bilan savdo qilmang🫱🏻‍🫲🏽\n"
-        f"E'lon berish: @IS_telefonsavdo_bot"
+        f"@IS_telefonsavdo_bot"
     )
 
     admin_kb = types.InlineKeyboardMarkup()
@@ -534,7 +534,7 @@ def cb_admin_activate(call):
         f"\n{f'👤 @{ad.user.username}' if ad.user.username else ''}"
         f"\n\nTelefon adminga tegishli emas 🚩\n"
         f"Zaklat bilan savdo qilmang🫱🏻‍🫲🏽\n"
-        f"e'lon berish: @IS_telefonsavdo_bot"
+        f"@IS_telefonsavdo_bot"
     )
 
     imgs = list(ad.images.all())
