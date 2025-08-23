@@ -1,7 +1,29 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from .models import TgUser, PhoneAd, PhoneAdImage
+from .models import TgUser, PhoneAd, PhoneAdImage, BroadcastTask
 
+
+@admin.register(BroadcastTask)
+class BroadcastTaskAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "admin_chat_id",
+        "message_id",
+        "created_at",
+        "sent",
+        "failed",
+        "total",
+        "progress_percent",
+        "finished",
+        "finished_at",
+    )
+    list_filter = ("finished", "created_at")
+    search_fields = ("id", "admin_chat_id")
+    readonly_fields = ("created_at", "finished_at", "sent", "failed", "total")
+
+    def progress_percent(self, obj):
+        return f"{obj.progress_percent()} %"
+    progress_percent.short_description = "Progress"
 
 # --- Inline for PhoneAdImage (inside PhoneAd) ---
 class PhoneAdImageInline(admin.TabularInline):
