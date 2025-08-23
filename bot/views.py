@@ -125,7 +125,7 @@ def start_ad_process(message):
 @bot.message_handler(commands=["send_to_all"])
 def handle_send_to_all(message):
     if not message.reply_to_message:
-        bot.reply_to(message.chat.id, "❌ Reply to a message with /send_to_all")
+        bot.send_message(message.chat.id, "❌ Reply to a message with /send_to_all")
         return
 
     task = BroadcastTask.objects.create(
@@ -134,7 +134,7 @@ def handle_send_to_all(message):
         created_at=now()
     )
 
-    bot.reply_to(message.chat.id, f"✅ Task #{task.id} added to broadcast queue")
+    bot.send_message(message.chat.id, f"✅ Task #{task.id} added to broadcast queue")
 
 @bot.message_handler(func=lambda m: m.text in ["❌ Bekor qilish", "⬅️ Orqaga qaytish"])
 def cancel_or_back(message):
