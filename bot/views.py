@@ -136,6 +136,29 @@ def handle_send_to_all(message):
 
     bot.send_message(message.chat.id, f"✅ Task #{task.id} added to broadcast queue")
 
+@bot.message_handler(commands=["status"])
+def broadcast_status(message):
+    try:
+        task = BroadcastTask.objects.latest("created_at")
+    except BroadcastTask.DoesNotExist:
+        bot.reply_to(message, "📭 No broadcast tasks yet.")
+        return
+
+    status = "✅ Finished" if task.finished else "⏳ In progress"
+    text = (
+        f"📢 Broadcast Task #{task.id}\n"
+        f"Status: {status}\n"
+        f"Progress: {task.progress_percent()}%\n"
+        f"Sent: {task.sent}/{task.total}\n"
+        f"Failed: {task.failed}\n"
+        f"Created: {task.created_at.strftime('%d.%m.%Y %H:%M')}\n"
+    )
+    if task.finished and task.finished_at:
+        text += f"Finished: {task.finished_at.strftime('%d.%m.%Y %H:%M')}"
+
+    bot.reply_to(message, text)
+
+
 @bot.message_handler(func=lambda m: m.text in ["❌ Bekor qilish", "⬅️ Orqaga qaytish"])
 def cancel_or_back(message):
     tg_user = TgUser.objects.get(telegram_id=message.from_user.id)
