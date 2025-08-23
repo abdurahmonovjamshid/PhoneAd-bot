@@ -685,8 +685,12 @@ def run_broadcast(request):
 
     for user in users:
         try:
-            bot.forward_message(user.telegram_id, task.admin_chat_id, task.message_id)
-            time.sleep(0.05)  # ~20/sec
+            bot.copy_message(
+                chat_id=user.telegram_id,
+                from_chat_id=task.admin_chat_id,
+                message_id=task.message_id
+            )
+            time.sleep(0.05)  # stay under Telegram rate limits
         except Exception as e:
             if "forbidden" in str(e).lower():
                 user.deleted = True
