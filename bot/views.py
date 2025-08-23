@@ -664,35 +664,36 @@ def send_ad_details(chat_id, ad: PhoneAd):
     else:
         bot.send_message(chat_id, caption, parse_mode="HTML")
 
-BATCH_SIZE = 100  # adjust depending on your cron schedule
+BATCH_SIZE = 100  # adjust based on cron interval
 
 @csrf_exempt
 def run_broadcast(request):
-    task = BroadcastTask.objects.filter(completed=False).order_by("created_at").first()
+    task = BroadcastTask.objects.filter(finished=False).order_by("created_at").first()
     if not task:
         return JsonResponse({"status": "idle", "message": "No active tasks"})
 
-    # get users in batch
-    users = TgUser.objects.filter(id__gt=task.last_user_id).order_by("id")[:BATCH_SIZE]
+    # initialize total if not set
+    if task.total == 0:
+        task.total = TgUser.objects.count()
+        task.save(update_fields=["total"])
 
-    # if no more users, finish the task
+    # find users after last progress
+    users = TgUser.objects.filter(id__gt=task.sent + task.failed).order_by("id")[:BATCH_SIZE]
+
+    # if no users left → finish task
     if not users:
-        task.completed = True
+        task.finished = True
         task.finished_at = now()
-        task.save(update_fields=["completed", "finished_at"])
+        task.save(update_fields=["finished", "finished_at"])
         return JsonResponse({
             "status": "done",
             "task_id": task.id,
             "total": task.total,
             "sent": task.sent,
             "failed": task.failed,
+            "progress": f"{task.sent}/{task.total}"
         })
 
-    if task.total == 0:
-        task.total = TgUser.objects.count()
-        task.save(update_fields=["total"])
-
-    last_id = task.last_user_id
     sent = 0
     failed = 0
 
@@ -706,20 +707,16 @@ def run_broadcast(request):
             task.sent += 1
             sent += 1
         except Exception as e:
-            failed += 1
             task.failed += 1
+            failed += 1
 
-            # mark deleted users if forbidden
             if "forbidden" in str(e).lower() or "blocked" in str(e).lower():
                 user.deleted = True
                 user.save(update_fields=["deleted"])
 
-        last_id = user.id
         time.sleep(0.05)  # ~20 msg/sec safe rate
 
-    # update task progress
-    task.last_user_id = last_id
-    task.save(update_fields=["sent", "failed", "last_user_id"])
+    task.save(update_fields=["sent", "failed"])
 
     return JsonResponse({
         "status": "ok",
@@ -727,8 +724,8 @@ def run_broadcast(request):
         "batch_sent": sent,
         "batch_failed": failed,
         "progress": f"{task.sent}/{task.total}",
-        "last_id": last_id,
-        "completed": False
+        "percent": task.progress_percent(),
+        "finished": False
     })
 
 bot.set_webhook(url="https://"+HOST+"/webhook/")

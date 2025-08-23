@@ -72,6 +72,8 @@ class BroadcastTask(models.Model):
     failed = models.IntegerField(default=0)      # failed deliveries
     finished = models.BooleanField(default=False)
 
+    finished_at = models.DateTimeField(null=True, blank=True)
+
     def progress_percent(self):
         if self.total == 0:
             return 0
