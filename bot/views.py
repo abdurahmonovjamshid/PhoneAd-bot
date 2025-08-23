@@ -1,16 +1,19 @@
 import re
 
 import telebot
-from django.template.defaultfilters import date
-from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, InputMediaPhoto
+from django.utils.timezone import now
+from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 from conf.settings import HOST, TELEGRAM_BOT_TOKEN, ADMINS, CHANNEL_ID
 import json
 import traceback
 from django.http import HttpResponse
-from django.views.decorators.csrf import csrf_exempt
 from telebot import TeleBot, types
-from .models import TgUser, PhoneAd, PhoneAdImage
+from .models import TgUser, PhoneAd, PhoneAdImage, BroadcastTask
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+
+import time
 
 bot = TeleBot(TELEGRAM_BOT_TOKEN, threaded=False)
 
@@ -119,6 +122,19 @@ def start_ad_process(message):
 
     ask_question(message.chat.id, 1)
 
+@bot.message_handler(commands=["send_to_all"])
+def handle_send_to_all(message):
+    if not message.reply_to_message:
+        bot.reply_to(message.chat.id, "❌ Reply to a message with /send_to_all")
+        return
+
+    task = BroadcastTask.objects.create(
+        admin_chat_id=message.chat.id,
+        message_id=message.reply_to_message.message_id,
+        created_at=now()
+    )
+
+    bot.reply_to(message.chat.id, f"✅ Task #{task.id} added to broadcast queue")
 
 @bot.message_handler(func=lambda m: m.text in ["❌ Bekor qilish", "⬅️ Orqaga qaytish"])
 def cancel_or_back(message):
@@ -648,5 +664,39 @@ def send_ad_details(chat_id, ad: PhoneAd):
     else:
         bot.send_message(chat_id, caption, parse_mode="HTML")
 
+
+BATCH_SIZE = 500
+
+@csrf_exempt
+def run_broadcast(request):
+    task = BroadcastTask.objects.filter(completed=False).order_by("created_at").first()
+    if not task:
+        return JsonResponse({"status": "idle", "message": "No active tasks"})
+
+    users = TgUser.objects.filter(id__gt=task.last_user_id).order_by("id")[:BATCH_SIZE]
+
+    if not users:
+        task.completed = True
+        task.save()
+        return JsonResponse({"status": "done", "task": task.id})
+
+    last_id = task.last_user_id
+    sent = 0
+
+    for user in users:
+        try:
+            bot.forward_message(user.telegram_id, task.admin_chat_id, task.message_id)
+            time.sleep(0.05)  # ~20/sec
+        except Exception as e:
+            if "forbidden" in str(e).lower():
+                user.deleted = True
+                user.save()
+        last_id = user.id
+        sent += 1
+
+    task.last_user_id = last_id
+    task.save()
+
+    return JsonResponse({"status": "ok", "task": task.id, "sent": sent, "last_id": last_id})
 
 bot.set_webhook(url="https://"+HOST+"/webhook/")

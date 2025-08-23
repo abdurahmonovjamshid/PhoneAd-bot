@@ -18,7 +18,7 @@ from django.contrib import admin
 from django.http import HttpResponse
 from django.urls import path
 
-from bot.views import telegram_webhook
+from bot.views import telegram_webhook, run_broadcast
 def home(request):
     return HttpResponse("hello world")
 
@@ -27,4 +27,5 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('', home),
     path('webhook/', telegram_webhook, name='telegram_webhook'),
+    path("run-broadcast/", run_broadcast, name="run_broadcast"),
 ]
