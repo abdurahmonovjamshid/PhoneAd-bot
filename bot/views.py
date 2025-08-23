@@ -463,7 +463,6 @@ def cb_user_send_to_admin(call):
         types.InlineKeyboardButton("🗑 O‘chirish", callback_data=f"ad_admin_delete:{ad.id}")
     )
 
-    # Har bir admin’ga yuborish
     imgs = list(ad.images.all())
     for admin_chat_id in ADMINS:
         if imgs:
