@@ -52,6 +52,7 @@ class PhoneAdInline(admin.TabularInline):
 class TgUserAdmin(admin.ModelAdmin):
     list_display = ('__str__', 'phone', 'ads_count', 'created_at')
     inlines = [PhoneAdInline]
+    list_filter = ("deleted","step")
 
     def ads_count(self, obj):
         return obj.ads.count()
