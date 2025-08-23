@@ -63,11 +63,16 @@ class PhoneAdImage(models.Model):
         return f"Image for {self.ad.marka}"
 
 class BroadcastTask(models.Model):
-    admin_chat_id = models.BigIntegerField()   # Where the original msg is
-    message_id = models.BigIntegerField()      # Which msg to forward
+    admin_chat_id = models.BigIntegerField()
+    message_id = models.BigIntegerField()
     created_at = models.DateTimeField(auto_now_add=True)
-    completed = models.BooleanField(default=False)
-    last_user_id = models.BigIntegerField(default=0)  # Progress marker
 
-    def __str__(self):
-        return f"Broadcast {self.id} (done={self.completed})"
+    total = models.IntegerField(default=0)       # total users to send
+    sent = models.IntegerField(default=0)        # messages sent successfully
+    failed = models.IntegerField(default=0)      # failed deliveries
+    finished = models.BooleanField(default=False)
+
+    def progress_percent(self):
+        if self.total == 0:
+            return 0
+        return round(self.sent / self.total * 100, 2)

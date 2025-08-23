@@ -664,8 +664,7 @@ def send_ad_details(chat_id, ad: PhoneAd):
     else:
         bot.send_message(chat_id, caption, parse_mode="HTML")
 
-
-BATCH_SIZE = 500
+BATCH_SIZE = 100  # adjust depending on your cron schedule
 
 @csrf_exempt
 def run_broadcast(request):
@@ -673,15 +672,29 @@ def run_broadcast(request):
     if not task:
         return JsonResponse({"status": "idle", "message": "No active tasks"})
 
+    # get users in batch
     users = TgUser.objects.filter(id__gt=task.last_user_id).order_by("id")[:BATCH_SIZE]
 
+    # if no more users, finish the task
     if not users:
         task.completed = True
-        task.save()
-        return JsonResponse({"status": "done", "task": task.id})
+        task.finished_at = now()
+        task.save(update_fields=["completed", "finished_at"])
+        return JsonResponse({
+            "status": "done",
+            "task_id": task.id,
+            "total": task.total,
+            "sent": task.sent,
+            "failed": task.failed,
+        })
+
+    if task.total == 0:
+        task.total = TgUser.objects.count()
+        task.save(update_fields=["total"])
 
     last_id = task.last_user_id
     sent = 0
+    failed = 0
 
     for user in users:
         try:
@@ -690,17 +703,32 @@ def run_broadcast(request):
                 from_chat_id=task.admin_chat_id,
                 message_id=task.message_id
             )
-            time.sleep(0.05)  # stay under Telegram rate limits
+            task.sent += 1
+            sent += 1
         except Exception as e:
-            if "forbidden" in str(e).lower():
+            failed += 1
+            task.failed += 1
+
+            # mark deleted users if forbidden
+            if "forbidden" in str(e).lower() or "blocked" in str(e).lower():
                 user.deleted = True
-                user.save()
+                user.save(update_fields=["deleted"])
+
         last_id = user.id
-        sent += 1
+        time.sleep(0.05)  # ~20 msg/sec safe rate
 
+    # update task progress
     task.last_user_id = last_id
-    task.save()
+    task.save(update_fields=["sent", "failed", "last_user_id"])
 
-    return JsonResponse({"status": "ok", "task": task.id, "sent": sent, "last_id": last_id})
+    return JsonResponse({
+        "status": "ok",
+        "task_id": task.id,
+        "batch_sent": sent,
+        "batch_failed": failed,
+        "progress": f"{task.sent}/{task.total}",
+        "last_id": last_id,
+        "completed": False
+    })
 
 bot.set_webhook(url="https://"+HOST+"/webhook/")
