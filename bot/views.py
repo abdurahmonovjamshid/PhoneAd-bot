@@ -84,7 +84,7 @@ def ask_question(chat_id, step):
         2: "📱 Telefon markasini kiriting (masalan: Iphone 16; Redmi Note 14 pro):",
         3: "🛠 Telefon holatini kiriting (masalan: Yangi; Yaxshi; O'rtacha):",
         4: "🔋 Batareka sig'imini kiriting (masalan: 4500 mAH; 95%):",
-        5: "Telefon xotirasini kiriting",
+        5: "💾 Telefon xotirasini kiriting",
         6: "🎨 Rangini kiriting:",
         7: "📦 Karobka/dokument bormi? (Bor / Yo'q)",
         8: "💰 Narxni kiriting: (So'm / USD)",
