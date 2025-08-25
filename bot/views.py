@@ -440,7 +440,7 @@ def handle_steps(message):
             f"🚩 Manzil: {ad.manzil}\n"
             f"📞 Tel: {ad.tel_raqam}\n"
             f"{'👤 @' + ad.user.username if ad.user.username else ''}"
-            + ("\n" if ad.user.username else "")
+            + ("\n\n" if ad.user.username else "\n")
                 + (
                 "Telefon adminga tegishli emas 🚩\n"
                 "Zaklat bilan savdo qilmang🫱🏻‍🫲🏽\n"
@@ -619,7 +619,7 @@ def cb_admin_delete(call):
     ad_id = int(call.data.split(":")[1])
     try:
         ad = PhoneAd.objects.get(id=ad_id)
-        bot.send_message(chat_id=ad.user.telegram_id, text=f"`{ad.marka} {ad.narx_usd_sum}` E'loningiz tasdiqlandi!",
+        bot.send_message(chat_id=ad.user.telegram_id, text=f"`{ad.marka} {ad.narx_usd_sum}` E'loningiz o'chirildi!",
                          parse_mode="Markdown")
     except PhoneAd.DoesNotExist:
         bot.answer_callback_query(call.id, "E'lon topilmadi.")
