@@ -84,12 +84,13 @@ def ask_question(chat_id, step):
         2: "📱 Telefon markasini kiriting (masalan: Iphone 16; Redmi Note 14 pro):",
         3: "🛠 Telefon holatini kiriting (masalan: Yangi; Yaxshi; O'rtacha):",
         4: "🔋 Batareka sig'imini kiriting (masalan: 4500 mAH; 95%):",
-        5: "🎨 Rangini kiriting:",
-        6: "📦 Karobka/dokument bormi? (Bor / Yo'q",
-        7: "💰 Narxni kiriting: (So'm / USD)",
-        8: "♻️ Obmen bormi? (Ha / Yo‘q):",
-        9: "🚩 Manzilni kiriting:",
-        10: "📞 Telefon raqamingizni yuboring:",
+        5: "Telefon xotirasini kiriting",
+        6: "🎨 Rangini kiriting:",
+        7: "📦 Karobka/dokument bormi? (Bor / Yo'q)",
+        8: "💰 Narxni kiriting: (So'm / USD)",
+        9: "♻️ Obmen bormi? (Ha / Yo‘q):",
+        10: "🚩 Manzilni kiriting:",
+        11: "📞 Telefon raqamingizni yuboring:",
     }
     bot.send_message(chat_id, questions[step], reply_markup=step_keyboard())
 
@@ -353,16 +354,21 @@ def handle_steps(message):
         tg_user.step = 5
 
     elif tg_user.step == 5:
-        ad.rangi = message.text
+        ad.xotira = message.text
         ad.save()
         tg_user.step = 6
 
     elif tg_user.step == 6:
-        ad.komplekt = message.text
+        ad.rangi = message.text
         ad.save()
         tg_user.step = 7
 
     elif tg_user.step == 7:
+        ad.komplekt = message.text
+        ad.save()
+        tg_user.step = 8
+
+    elif tg_user.step == 8:
         text = message.text.strip().lower()
 
         # Normalize input (remove commas, extra spaces)
@@ -387,7 +393,6 @@ def handle_steps(message):
                 bot.send_message(message.chat.id,
                                  "❌ Narxni raqam va valyuta bilan kiriting (masalan: 1500 $, 1200300 so'm).")
                 return
-
         try:
             amount = int(text_clean)
         except ValueError:
@@ -397,21 +402,19 @@ def handle_steps(message):
         # Save in model
         ad.narx_usd_sum = f"{amount} {currency}"
         ad.save()
-        tg_user.step = 8
-
-    elif tg_user.step == 8:
-        ad.obmen = message.text.lower() in ["ha", "bor"]
-        ad.save()
         tg_user.step = 9
 
     elif tg_user.step == 9:
-        ad.manzil = message.text
+        ad.obmen = message.text.lower() in ["ha", "bor"]
         ad.save()
         tg_user.step = 10
 
-
-
     elif tg_user.step == 10:
+        ad.manzil = message.text
+        ad.save()
+        tg_user.step = 11
+
+    elif tg_user.step == 11:
         phone = message.text.strip()
         pattern = r"^\+998\d{9}$"  # +998 va keyin 9 ta raqam
         if not re.match(pattern, phone):
@@ -429,6 +432,7 @@ def handle_steps(message):
             f"📱 <b>{ad.marka}</b>\n"
             f"🛠 Holati: {ad.holati}\n"
             f"🔋 Batareka: {ad.batareka_holati}\n"
+            f"💾 Xotira: {ad.xotira}\n"
             f"🎨 Rang: {ad.rangi}\n"
             f"📦 Komplekt: {ad.komplekt}\n"
             f"💰 Narx: {ad.narx_usd_sum}\n"
@@ -481,6 +485,7 @@ def cb_user_send_to_admin(call):
         f"📱 <b>{ad.marka}</b>\n"
         f"🛠 Holati: {ad.holati}\n"
         f"🔋 Batareka: {ad.batareka_holati}\n"
+        f"💾 Xotira: {ad.xotira}\n"
         f"🎨 Rang: {ad.rangi}\n"
         f"📦 Komplekt: {ad.komplekt}\n"
         f"💰 Narx: {ad.narx_usd_sum}\n"
@@ -570,6 +575,7 @@ def cb_admin_activate(call):
         f"🛠 Holati: {ad.holati}\n"
         f"💰 Narx: {ad.narx_usd_sum}\n"
         f"🔋 Batareka: {ad.batareka_holati}\n"
+        f"💾 Xotira: {ad.xotira}\n"
         f"🎨 Rang: {ad.rangi}\n"
         f"📦 {ad.komplekt}\n"
         f"🚩 {ad.manzil}\n"

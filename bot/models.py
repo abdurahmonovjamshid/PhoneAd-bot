@@ -37,6 +37,7 @@ class PhoneAd(models.Model):
     marka = models.CharField(max_length=255)  # 📱 telefon marka
     holati = models.CharField(max_length=255)  # 🛠 holati
     batareka_holati = models.CharField(max_length=255)  # 🔋 batareka holati
+    xotira = models.CharField(max_length=255) # 🧠 Xotira
     rangi = models.CharField(max_length=50)  # 🎨 rangi
     komplekt = models.CharField(max_length=255)  # 📦 & 📑 bor yoki yo'q
     narx_usd_sum = models.CharField(max_length=50)  # 💰 dollarda sumda
