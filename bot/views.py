@@ -493,7 +493,7 @@ def cb_user_send_to_admin(call):
         f"🚩 Manzil: {ad.manzil}\n"
         f"📞 Tel: {ad.tel_raqam}\n"
         f"{'👤 @' + ad.user.username if ad.user.username else ''}"
-            + ("\n" if ad.user.username else "")
+            + ("\n\n" if ad.user.username else "\n")
                 + (
                 "Telefon adminga tegishli emas 🚩\n"
                 "Zaklat bilan savdo qilmang🫱🏻‍🫲🏽\n"
@@ -582,7 +582,7 @@ def cb_admin_activate(call):
         f"♻️ Obmen: {'Bor' if ad.obmen else 'Yo‘q'}\n"
         f"📞 Tel: {ad.tel_raqam}\n"
         f"{'👤 @' + ad.user.username if ad.user.username else ''}"
-            + ("\n" if ad.user.username else "")
+            + ("\n\n" if ad.user.username else "\n")
                 + (
                 "Telefon adminga tegishli emas 🚩\n"
                 "Zaklat bilan savdo qilmang🫱🏻‍🫲🏽\n"
