@@ -30,3 +30,25 @@ def get_stats():
     )
 
     return stats_text
+
+def make_caption(ad):
+    caption = (
+            f"📱 <b>{ad.marka}</b>\n"
+            f"🛠 Holati: {ad.holati}\n"
+            f"🔋 Batareka: {ad.batareka_holati}\n"
+            f"💾 Xotira: {ad.xotira}\n"
+            f"🎨 Rang: {ad.rangi}\n"
+            f"📦 Komplekt: {ad.komplekt}\n"
+            f"💰 Narx: {ad.narx_usd_sum}\n"
+            f"♻️ Obmen: {'Bor' if ad.obmen else 'Yo‘q'}\n"
+            f"🚩 Manzil: {ad.manzil}\n"
+            f"📞 Tel: {ad.tel_raqam}\n"
+            f"{'👤 @' + ad.user.username if ad.user.username else ''}"
+            + ("\n\n" if ad.user.username else "\n")
+            + (
+                "Telefon adminga tegishli emas 🚩\n"
+                "Zaklat bilan savdo qilmang🫱🏻‍🫲🏽\n"
+                "@IS_telefonsavdo_bot"
+            )
+    )
+    return caption

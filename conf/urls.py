@@ -30,3 +30,4 @@ urlpatterns = [
     path('webhook/', telegram_webhook, name='telegram_webhook'),
     path("run-broadcast/", run_broadcast, name="run_broadcast"),
 ]
+

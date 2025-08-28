@@ -15,7 +15,7 @@ from django.views.decorators.csrf import csrf_exempt
 
 import time
 
-from .utils import get_stats
+from .utils import get_stats, make_caption
 
 bot = TeleBot(TELEGRAM_BOT_TOKEN, threaded=False)
 
@@ -291,16 +291,8 @@ def show_ad_detail(call):
 
 # Helper function to send ad with photos
 def send_ad_details(chat_id, ad: PhoneAd):
-    kanal_status = "✅" if ad.status == "active" else "❌"
-    caption = (
-        f"📱 <b>{ad.marka}</b>\n"
-        f"💰 Narx: {ad.narx_usd_sum}\n"
-        f"🎨 Rang: {ad.rangi}\n"
-        f"📦 Komplekt: {ad.komplekt}\n"
-        f"🚩 Manzil: {ad.manzil}\n"
-        f"📞 Tel: {ad.tel_raqam}\n"
-        f"📡 Kanalga joylangan: {kanal_status}"
-    )
+    kanal_status = "✅" if ad.is_published == True else "❌"
+    caption = make_caption(ad) + f"\n📡 Kanalga joylangan: {kanal_status}"
 
     images = ad.images.all()
     if images.exists():
@@ -447,25 +439,7 @@ def handle_steps(message):
         tg_user.step = 0
         tg_user.save()
         # Foydalanuvchiga oldindan ko‘rish matni
-        caption = (
-            f"📱 <b>{ad.marka}</b>\n"
-            f"🛠 Holati: {ad.holati}\n"
-            f"🔋 Batareka: {ad.batareka_holati}\n"
-            f"💾 Xotira: {ad.xotira}\n"
-            f"🎨 Rang: {ad.rangi}\n"
-            f"📦 Komplekt: {ad.komplekt}\n"
-            f"💰 Narx: {ad.narx_usd_sum}\n"
-            f"♻️ Obmen: {'Bor' if ad.obmen else 'Yo‘q'}\n"
-            f"🚩 Manzil: {ad.manzil}\n"
-            f"📞 Tel: {ad.tel_raqam}\n"
-            f"{'👤 @' + ad.user.username if ad.user.username else ''}"
-            + ("\n\n" if ad.user.username else "\n")
-                + (
-                "Telefon adminga tegishli emas 🚩\n"
-                "Zaklat bilan savdo qilmang🫱🏻‍🫲🏽\n"
-                "@IS_telefonsavdo_bot"
-                )
-        )
+        caption = make_caption(ad)
         photos = list(ad.images.all())
         if photos:
             media = []
@@ -499,27 +473,7 @@ def cb_user_send_to_admin(call):
         bot.answer_callback_query(call.id, "E'lon topilmadi.")
         return
 
-    caption = (
-        f"🆕 Yangi e'lon (tasdiqlash kerak)\n\n"
-        f"📱 <b>{ad.marka}</b>\n"
-        f"🛠 Holati: {ad.holati}\n"
-        f"🔋 Batareka: {ad.batareka_holati}\n"
-        f"💾 Xotira: {ad.xotira}\n"
-        f"🎨 Rang: {ad.rangi}\n"
-        f"📦 Komplekt: {ad.komplekt}\n"
-        f"💰 Narx: {ad.narx_usd_sum}\n"
-        f"♻️ Obmen: {'Bor' if ad.obmen else 'Yo‘q'}\n"
-        f"🚩 Manzil: {ad.manzil}\n"
-        f"📞 Tel: {ad.tel_raqam}\n"
-        f"{'👤 @' + ad.user.username if ad.user.username else ''}"
-            + ("\n\n" if ad.user.username else "\n")
-                + (
-                "Telefon adminga tegishli emas 🚩\n"
-                "Zaklat bilan savdo qilmang🫱🏻‍🫲🏽\n"
-                "@IS_telefonsavdo_bot"
-                )
-    )
-
+    caption = make_caption(ad)
     admin_kb = types.InlineKeyboardMarkup()
     admin_kb.add(
         types.InlineKeyboardButton("✅ Faollashtirish", callback_data=f"ad_admin_activate:{ad.id}"),
@@ -588,27 +542,7 @@ def cb_admin_activate(call):
     )
 
     # Kanal uchun caption
-    caption = (
-        f"#Продается\n"
-        f"📱 <b>{ad.marka}</b>\n"
-        f"🛠 Holati: {ad.holati}\n"
-        f"💰 Narx: {ad.narx_usd_sum}\n"
-        f"🔋 Batareka: {ad.batareka_holati}\n"
-        f"💾 Xotira: {ad.xotira}\n"
-        f"🎨 Rang: {ad.rangi}\n"
-        f"📦 {ad.komplekt}\n"
-        f"🚩 {ad.manzil}\n"
-        f"♻️ Obmen: {'Bor' if ad.obmen else 'Yo‘q'}\n"
-        f"📞 Tel: {ad.tel_raqam}\n"
-        f"{'👤 @' + ad.user.username if ad.user.username else ''}"
-            + ("\n\n" if ad.user.username else "\n")
-                + (
-                "Telefon adminga tegishli emas 🚩\n"
-                "Zaklat bilan savdo qilmang🫱🏻‍🫲🏽\n"
-                "@IS_telefonsavdo_bot"
-                )
-    )
-
+    caption = make_caption(ad)
     imgs = list(ad.images.all())
     if imgs:
         media = []
@@ -684,33 +618,6 @@ def show_ad_detail(call):
     ad = PhoneAd.objects.get(id=ad_id)
     send_ad_details(call.message.chat.id, ad)
     bot.answer_callback_query(call.id)
-
-
-# Helper function to send ad with photos
-def send_ad_details(chat_id, ad: PhoneAd):
-    # Collect status info
-    kanal_status = "✅" if ad.status == "active" else "❌"
-    caption = (
-        f"📱 <b>{ad.marka}</b>\n"
-        f"💰 Narx: {ad.narx_usd_sum}\n"
-        f"🎨 Rang: {ad.rangi}\n"
-        f"📦 Komplekt: {ad.komplekt}\n"
-        f"🚩 Manzil: {ad.manzil}\n"
-        f"📞 Tel: {ad.tel_raqam}\n"
-        f"📡 Kanalga joylangan: {kanal_status}"
-    )
-    images = ad.images.all()
-    if images.exists():
-        if len(images) == 1:
-            bot.send_photo(chat_id, images[0].file_id, caption=caption, parse_mode="HTML")
-        else:
-            media_group = [
-                telebot.types.InputMediaPhoto(img.file_id, caption=caption if i == 0 else None, parse_mode="HTML")
-                for i, img in enumerate(images)
-            ]
-            bot.send_media_group(chat_id, media_group)
-    else:
-        bot.send_message(chat_id, caption, parse_mode="HTML")
 
 BATCH_SIZE = 100  # adjust based on cron interval
 
