@@ -45,6 +45,10 @@ class PhoneAd(models.Model):
     manzil = models.CharField(max_length=255)  # 🚩 manzil
     tel_raqam = models.CharField(max_length=20)  # 📞 telefon raqam
 
+    # payment details
+    payment_image = models.CharField(max_length=255, blank=True, null=True)  # Telegram file_id
+    is_paid = models.BooleanField(default=False)
+
     # Status va vaqt
     status = models.CharField(max_length=10, choices=SELL_STATUS_CHOICES, default='active')
     created_at = models.DateTimeField(auto_now_add=True)

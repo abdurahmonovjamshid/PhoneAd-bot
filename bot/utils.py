@@ -1,5 +1,6 @@
 from django.utils.timezone import now
-from django.db.models import Count
+from telebot import types
+
 from bot.models import PhoneAd, TgUser
 
 def get_stats():

@@ -227,10 +227,42 @@ def handle_forwarded_post(message):
 @bot.message_handler(content_types=['photo'])
 def handle_photos(message):
     tg_user = TgUser.objects.get(telegram_id=message.from_user.id)
+    if tg_user.step == 13:
+        try:
+            ad = PhoneAd.objects.filter(user=tg_user, status='active').latest('created_at')
+        except PhoneAd.DoesNotExist:
+            bot.send_message(message.chat.id, "❌ Hech qanday e'lon topilmadi.")
+            return
+        file_id = message.photo[-1].file_id
+        ad.payment_image = file_id
+        ad.is_paid = True
+        ad.save()
+        tg_user.step = 0
+        tg_user.save()
+        # Show preview again
+        caption = make_caption(ad) + "\n💳 To‘lov tasdiqlangan."
+        photos = list(ad.images.all())
+        if photos:
+            media = []
+            for i, img in enumerate(photos):
+                if i == 0:
+                    media.append(types.InputMediaPhoto(media=img.file_id, caption=caption, parse_mode='HTML'))
+                else:
+                    media.append(types.InputMediaPhoto(media=img.file_id))
+            bot.send_media_group(message.chat.id, media)
+        else:
+            bot.send_message(message.chat.id, caption, parse_mode='HTML')
+
+        kb = types.InlineKeyboardMarkup()
+        kb.add(
+            types.InlineKeyboardButton("✅ Adminga yuborish", callback_data=f"ad_user_send:{ad.id}"),
+            types.InlineKeyboardButton("🗑 O‘chirib yuborish", callback_data=f"ad_user_delete:{ad.id}")
+        )
+        bot.send_message(message.chat.id, "E'lon ma'lumotlarini tasdiqlang:", reply_markup=kb)
+        return
     if tg_user.step != 1:
         bot.send_message(message.chat.id, "📌 Iltimos, hozir rasm emas, so‘ralgan ma'lumotni yuboring.")
         return
-
     ad = PhoneAd.objects.filter(user=tg_user, status='active').latest('created_at')
     file_id = message.photo[-1].file_id
     PhoneAdImage.objects.create(ad=ad, file_id=file_id)
@@ -314,35 +346,28 @@ def send_ad_details(chat_id, ad: PhoneAd):
 @bot.message_handler(func=lambda message: message.text == "📞 Admin bilan bog‘lanish")
 def contact_admins(message):
     markup = types.InlineKeyboardMarkup()
-
     admins = ["ayfon_ol", "ferrezis"]
-
     for username in admins:
         btn = types.InlineKeyboardButton(
             text=f"@{username}",
             url=f"https://t.me/{username}"
         )
         markup.add(btn)
-
     bot.send_message(
         message.chat.id,
         "Adminlar bilan bog‘lanishingiz mumkin 👇",
         reply_markup=markup
     )
-
 @bot.message_handler(content_types=['text'])
 def handle_steps(message):
     tg_user = TgUser.objects.get(telegram_id=message.from_user.id)
-
     # Skip cancel/back here
     if message.text in ["❌ Bekor qilish", "⬅️ Orqaga qaytish"]:
         return
-
     try:
         ad = PhoneAd.objects.filter(user=tg_user, status='active').latest('created_at')
     except PhoneAd.DoesNotExist:
         ad = None
-
     if tg_user.step == 2:
         if len(message.text) > 25:
             bot.reply_to(
@@ -353,41 +378,32 @@ def handle_steps(message):
         ad.marka = message.text
         ad.save()
         tg_user.step = 3
-
     elif tg_user.step == 3:
         ad.holati = message.text
         ad.save()
         tg_user.step = 4
-
     elif tg_user.step == 4:
         ad.batareka_holati = message.text
         ad.save()
         tg_user.step = 5
-
     elif tg_user.step == 5:
         ad.xotira = message.text
         ad.save()
         tg_user.step = 6
-
     elif tg_user.step == 6:
         ad.rangi = message.text
         ad.save()
         tg_user.step = 7
-
     elif tg_user.step == 7:
         ad.komplekt = message.text
         ad.save()
         tg_user.step = 8
-
     elif tg_user.step == 8:
         text = message.text.strip().lower()
-
         # Normalize input (remove commas, extra spaces)
         text_clean = text.replace(",", "").replace(" ", "")
-
         currency = None
         amount = None
-
         # Detect USD
         if text_clean.endswith("$") or text_clean.endswith("usd"):
             currency = "USD"
@@ -409,25 +425,21 @@ def handle_steps(message):
         except ValueError:
             bot.send_message(message.chat.id, "❌ Narx noto‘g‘ri kiritildi. Masalan: 1500 $, 1200300 so'm")
             return
-
         # Save in model
         ad.narx_usd_sum = f"{amount} {currency}"
         ad.save()
         tg_user.step = 9
-
     elif tg_user.step == 9:
         ad.obmen = message.text.lower() in ["ha", "bor"]
         ad.save()
         tg_user.step = 10
-
     elif tg_user.step == 10:
         ad.manzil = message.text
         ad.save()
         tg_user.step = 11
-
     elif tg_user.step == 11:
         phone = message.text.strip()
-        pattern = r"^\+998\d{9}$"  # +998 va keyin 9 ta raqam
+        pattern = r"^\+998\d{9}$"
         if not re.match(pattern, phone):
             bot.send_message(
                 message.chat.id,
@@ -436,9 +448,30 @@ def handle_steps(message):
             return
         ad.tel_raqam = phone
         ad.save()
-        tg_user.step = 0
+        tg_user.step = 12
         tg_user.save()
-        # Foydalanuvchiga oldindan ko‘rish matni
+
+        # Ask payment
+        kb = types.InlineKeyboardMarkup()
+        kb.add(
+            types.InlineKeyboardButton("✅ Ha", callback_data=f"ad_payment_yes:{ad.id}"),
+            types.InlineKeyboardButton("❌ Yo‘q", callback_data=f"ad_payment_no:{ad.id}")
+        )
+        bot.send_message(message.chat.id, "💳 Ushbu e'lon uchun to‘lov qildingizmi?", reply_markup=kb)
+        return
+
+    tg_user.save()
+    if tg_user.step != 0:
+        ask_question(message.chat.id, tg_user.step)
+
+@bot.callback_query_handler(func=lambda c: c.data.startswith("ad_payment_"))
+def cb_payment(call):
+    action, ad_id = call.data.split(":")
+    ad = PhoneAd.objects.get(id=ad_id)
+    tg_user = TgUser.objects.get(telegram_id=call.from_user.id)
+
+    if action == "ad_payment_no":
+        # Show preview + send/delete buttons (old logic)
         caption = make_caption(ad)
         photos = list(ad.images.all())
         if photos:
@@ -448,21 +481,21 @@ def handle_steps(message):
                     media.append(types.InputMediaPhoto(media=img.file_id, caption=caption, parse_mode='HTML'))
                 else:
                     media.append(types.InputMediaPhoto(media=img.file_id))
-            bot.send_media_group(message.chat.id, media)
+            bot.send_media_group(call.message.chat.id, media)
         else:
-            bot.send_message(message.chat.id, caption, parse_mode='HTML')
+            bot.send_message(call.message.chat.id, caption, parse_mode='HTML')
         kb = types.InlineKeyboardMarkup()
         kb.add(
             types.InlineKeyboardButton("✅ Adminga yuborish", callback_data=f"ad_user_send:{ad.id}"),
             types.InlineKeyboardButton("🗑 O‘chirib yuborish", callback_data=f"ad_user_delete:{ad.id}")
         )
-        bot.send_message(message.chat.id, "E'lon ma'lumotlarini tasdiqlang:", reply_markup=kb)
-        return
-
-    tg_user.save()
-    if tg_user.step != 0:
-        ask_question(message.chat.id, tg_user.step)
-
+        bot.send_message(call.message.chat.id, "E'lon ma'lumotlarini tasdiqlang:", reply_markup=kb)
+        tg_user.step = 0
+        tg_user.save()
+    elif action == "ad_payment_yes":
+        tg_user.step = 13  # wait for payment screenshot
+        tg_user.save()
+        bot.send_message(call.message.chat.id, "📸 To‘lov chekini rasm sifatida yuboring.")
 
 @bot.callback_query_handler(func=lambda c: c.data.startswith("ad_user_send:"))
 def cb_user_send_to_admin(call):
@@ -474,12 +507,14 @@ def cb_user_send_to_admin(call):
         return
 
     caption = make_caption(ad)
+    if ad.is_paid:
+        caption += "\n💳 To‘lov: ✅ Tasdiqlangan"
+
     admin_kb = types.InlineKeyboardMarkup()
     admin_kb.add(
         types.InlineKeyboardButton("✅ Faollashtirish", callback_data=f"ad_admin_activate:{ad.id}"),
         types.InlineKeyboardButton("🗑 O‘chirish", callback_data=f"ad_admin_delete:{ad.id}")
     )
-
     imgs = list(ad.images.all())
     for admin_chat_id in ADMINS:
         if imgs:
@@ -492,16 +527,19 @@ def cb_user_send_to_admin(call):
             bot.send_media_group(admin_chat_id, media)
         else:
             bot.send_message(admin_chat_id, caption, parse_mode='HTML')
+
+        # Send payment screenshot separately
+        if ad.payment_image:
+            bot.send_photo(admin_chat_id, ad.payment_image, caption="💳 To‘lov cheki")
+
         bot.send_message(admin_chat_id, "E'lonni boshqarish:", reply_markup=admin_kb)
 
     bot.answer_callback_query(call.id, "Adminga yuborildi ✅")
-    # Istasangiz, foydalanuvchidagi tugmalarni olib tashlashingiz mumkin:
     try:
         bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
     except Exception:
         pass
     bot.send_message(call.message.chat.id, "✅ E'loningiz adminga yuborildi. Javob kuting.")
-
 
 @bot.callback_query_handler(func=lambda c: c.data.startswith("ad_user_delete:"))
 def cb_user_delete(call):
@@ -529,12 +567,10 @@ def cb_admin_activate(call):
         bot.answer_callback_query(call.id, "❌ E'lon topilmadi.")
         return
 
-    # ✅ Prevent duplicates
     if ad.is_published:
         bot.answer_callback_query(call.id, "⚠️ Bu e'lon allaqachon kanalga joylangan.")
         return
 
-    # Owner notification
     bot.send_message(
         chat_id=ad.user.telegram_id,
         text=f"`{ad.marka} {ad.narx_usd_sum}` E'loningiz tasdiqlandi!",
@@ -555,7 +591,6 @@ def cb_admin_activate(call):
     else:
         bot.send_message(CHANNEL_ID[0], caption, parse_mode='HTML')
 
-    # Mark as published ✅
     ad.status = 'active'
     ad.is_published = True
     ad.save()
@@ -586,32 +621,6 @@ def cb_admin_delete(call):
         pass
     bot.send_message(call.message.chat.id, "🗑 E'lon o‘chirildi.")
 
-# Command handler for "📜 Mening e'lonlarim"
-@bot.message_handler(func=lambda m: m.text == "📜 Mening e'lonlarim")
-def my_ads(message):
-    tg_user = TgUser.objects.get(user_id=message.from_user.id)
-    ads = PhoneAd.objects.filter(user=tg_user).order_by('-created_at')
-
-    if not ads.exists():
-        bot.send_message(message.chat.id, "📭 Sizda hali e'lonlar yo'q.")
-        return
-
-    if ads.count() <= 3:
-        # Directly send all ads
-        for ad in ads:
-            send_ad_details(message.chat.id, ad)
-    else:
-        # Send paginated list
-        markup = InlineKeyboardMarkup(row_width=5)
-        buttons = [
-            InlineKeyboardButton(str(i+1), callback_data=f"myad_{ad.id}")
-            for i, ad in enumerate(ads)
-        ]
-        markup.add(*buttons)
-        bot.send_message(message.chat.id, "📜 E'lonlaringiz ro'yxati:", reply_markup=markup)
-
-
-# Callback query handler for pagination buttons
 @bot.callback_query_handler(func=lambda c: c.data.startswith("myad_"))
 def show_ad_detail(call):
     ad_id = int(call.data.split("_")[1])
