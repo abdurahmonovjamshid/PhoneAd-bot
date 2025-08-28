@@ -19,6 +19,7 @@ from django.http import HttpResponse
 from django.urls import path
 
 from bot.views import telegram_webhook, run_broadcast
+
 def home(request):
     return HttpResponse("hello world")
 

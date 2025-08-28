@@ -15,6 +15,8 @@ from django.views.decorators.csrf import csrf_exempt
 
 import time
 
+from .utils import get_stats
+
 bot = TeleBot(TELEGRAM_BOT_TOKEN, threaded=False)
 
 @csrf_exempt
@@ -136,6 +138,17 @@ def handle_send_to_all(message):
     )
 
     bot.send_message(message.chat.id, f"✅ Task #{task.id} added to broadcast queue")
+
+
+@bot.message_handler(commands=['stats'])
+def stats_handler(message):
+    if str(message.from_user.id) not in ADMINS:  # optional admin check
+        bot.reply_to(message, "❌ You don’t have permission.")
+        return
+
+    stats_text = get_stats()
+    bot.send_message(message.chat.id, stats_text, parse_mode="HTML")
+
 
 @bot.message_handler(commands=["status"])
 def broadcast_status(message):
