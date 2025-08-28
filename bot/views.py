@@ -352,6 +352,12 @@ def handle_steps(message):
         ad = None
 
     if tg_user.step == 2:
+        if len(message.text) > 25:
+            bot.reply_to(
+                message,
+                "❌ Marka nomi 25 ta belgidan oshmasligi kerak. Qisqaroq kiriting."
+            )
+            return
         ad.marka = message.text
         ad.save()
         tg_user.step = 3
