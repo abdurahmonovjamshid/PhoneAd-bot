@@ -524,13 +524,14 @@ def cb_user_send_to_admin(call):
                     media.append(types.InputMediaPhoto(media=img.file_id, caption=caption, parse_mode='HTML'))
                 else:
                     media.append(types.InputMediaPhoto(media=img.file_id))
-            msg = bot.send_media_group(admin_chat_id, media)
+            msg_list = bot.send_media_group(admin_chat_id, media)
+            first_msg = msg_list[0]
         else:
-            msg = bot.send_message(admin_chat_id, caption, parse_mode='HTML')
+            first_msg  = bot.send_message(admin_chat_id, caption, parse_mode='HTML')
 
         # Send payment screenshot separately
         if ad.payment_image:
-            bot.send_photo(admin_chat_id, ad.payment_image, caption="💳 To‘lov cheki", reply_to_message_id=msg.message_id)
+            bot.send_photo(admin_chat_id, ad.payment_image, caption="💳 To‘lov cheki", reply_to_message_id=first_msg.message_id)
 
         bot.send_message(admin_chat_id, "E'lonni boshqarish:", reply_markup=admin_kb)
 
