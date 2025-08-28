@@ -457,7 +457,7 @@ def handle_steps(message):
             types.InlineKeyboardButton("✅ Ha", callback_data=f"ad_payment_yes:{ad.id}"),
             types.InlineKeyboardButton("❌ Yo‘q", callback_data=f"ad_payment_no:{ad.id}")
         )
-        bot.send_message(message.chat.id, "💳 Ushbu e'lon uchun to‘lov qildingizmi?", reply_markup=kb)
+        bot.send_message(message.chat.id, "❓ Reklamani chiqarish pullik. To‘lov qildingizmi?", reply_markup=kb)
         return
 
     tg_user.save()
@@ -508,7 +508,7 @@ def cb_user_send_to_admin(call):
 
     caption = make_caption(ad)
     if ad.is_paid:
-        caption += "\n💳 To‘lov: ✅ Tasdiqlangan"
+        caption += "\n\n💳 To‘lov: ✅ Tasdiqlangan"
 
     admin_kb = types.InlineKeyboardMarkup()
     admin_kb.add(
@@ -524,13 +524,13 @@ def cb_user_send_to_admin(call):
                     media.append(types.InputMediaPhoto(media=img.file_id, caption=caption, parse_mode='HTML'))
                 else:
                     media.append(types.InputMediaPhoto(media=img.file_id))
-            bot.send_media_group(admin_chat_id, media)
+            msg = bot.send_media_group(admin_chat_id, media)
         else:
-            bot.send_message(admin_chat_id, caption, parse_mode='HTML')
+            msg = bot.send_message(admin_chat_id, caption, parse_mode='HTML')
 
         # Send payment screenshot separately
         if ad.payment_image:
-            bot.send_photo(admin_chat_id, ad.payment_image, caption="💳 To‘lov cheki")
+            bot.send_photo(admin_chat_id, ad.payment_image, caption="💳 To‘lov cheki", reply_to_message_id=msg.message_id)
 
         bot.send_message(admin_chat_id, "E'lonni boshqarish:", reply_markup=admin_kb)
 
