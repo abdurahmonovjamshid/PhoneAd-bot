@@ -34,6 +34,7 @@ def get_stats():
 
 def make_caption(ad):
     caption = (
+            f"#Продается\n"
             f"📱 <b>{ad.marka}</b>\n"
             f"🛠 Holati: {ad.holati}\n"
             f"🔋 Batareka: {ad.batareka_holati}\n"
