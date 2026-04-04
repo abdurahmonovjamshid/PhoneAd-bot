@@ -1,4 +1,6 @@
 from django.db import models
+from mptt.models import MPTTModel, TreeForeignKey
+from mptt.admin import DraggableMPTTAdmin
 
 class TgUser(models.Model):
     telegram_id = models.BigIntegerField(unique=True)
@@ -83,3 +85,54 @@ class BroadcastTask(models.Model):
         if self.total == 0:
             return 0
         return round(self.sent / self.total * 100, 2)
+
+
+class PricingNode(MPTTModel):
+    NODE_TYPES = (
+        ("model", "Model"),
+        ("question", "Question"),
+        ("answer", "Answer"),
+    )
+    parent = TreeForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        related_name="children",
+        on_delete=models.CASCADE
+    )
+    type = models.CharField(max_length=10, choices=NODE_TYPES)
+    text = models.CharField(max_length=255)
+    price_change = models.IntegerField(default=0)
+    order = models.IntegerField(default=0)
+    # conditional question
+    show_if_answer = TreeForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="conditional_children"
+    )
+    allow_skip = models.BooleanField(default=False)
+    final_text = models.TextField(blank=True)
+    class MPTTMeta:
+        order_insertion_by = ['order']
+    def __str__(self):
+        # nice display in admin tree
+        if self.type == "answer":
+            return f"{self.text} 💲{self.price_change}"
+        return self.text
+
+class PricingSession(models.Model):
+    user = models.ForeignKey(TgUser, on_delete=models.CASCADE)
+    model = models.ForeignKey(
+        PricingNode,
+        on_delete=models.CASCADE,
+        related_name="model_sessions"
+    )
+    answers = models.ManyToManyField(
+        PricingNode,
+        blank=True,
+        related_name="answer_sessions"
+    )
+    step = models.IntegerField(default=0)
+    price_preview = models.IntegerField(default=0)

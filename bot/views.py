@@ -9,7 +9,7 @@ import json
 import traceback
 from django.http import HttpResponse
 from telebot import TeleBot, types
-from .models import TgUser, PhoneAd, PhoneAdImage, BroadcastTask
+from .models import TgUser, PhoneAd, PhoneAdImage, BroadcastTask, PricingSession, PricingNode
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 
@@ -69,8 +69,8 @@ def telegram_webhook(request):
 
 def main_menu():
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.add("📢 E'lon joylash", "📜 Mening e'lonlarim")
-    markup.add("📞 Admin bilan bog‘lanish")
+    markup.add("📢 E'lon joylash", "📱 Telefonlarni narxlash 💲")
+    markup.add("📜 Mening e'lonlarim", "📞 Admin bilan bog‘lanish")
     return markup
 
 
@@ -96,10 +96,165 @@ def ask_question(chat_id, step):
     }
     bot.send_message(chat_id, questions[step], reply_markup=step_keyboard())
 
+def get_next_question(session):
+    questions = PricingNode.objects.filter(
+        parent=session.model,
+        type="question"
+    ).order_by("order")
+    answered_ids = session.answers.values_list("id", flat=True)
+    for q in questions[session.step:]:
+        if q.show_if_answer:
+            if q.show_if_answer.id not in answered_ids:
+                continue
+        return q
+    return None
+
+def calculate_preview(session):
+    price = session.model.price_change
+    for ans in session.answers.all():
+        price += ans.price_change
+    return price
+
+def answers_keyboard(question):
+    kb = types.InlineKeyboardMarkup()
+    for ans in question.children.filter(type="answer"):
+        kb.add(
+            types.InlineKeyboardButton(
+                ans.text,
+                callback_data=f"ans_{ans.id}"
+            )
+        )
+    if question.allow_skip:
+        kb.add(
+            types.InlineKeyboardButton(
+                "⏭ Skip",
+                callback_data="skip"
+            )
+        )
+    kb.add(
+        types.InlineKeyboardButton(
+            "⬅ Back",
+            callback_data="back"
+        )
+    )
+    return kb
+
+@bot.callback_query_handler(func=lambda c: c.data.startswith("ans_"))
+def answer_handler(call):
+    ans_id = int(call.data.split("_")[1])
+    answer = PricingNode.objects.get(id=ans_id)
+    session = PricingSession.objects.filter(
+        user__telegram_id=call.from_user.id
+    ).last()
+    session.answers.add(answer)
+    session.step += 1
+    session.price_preview = calculate_preview(session)
+    session.save()
+    ask_question(call)
+
+@bot.callback_query_handler(func=lambda c: c.data == "back")
+def go_back(call):
+    session = PricingSession.objects.filter(
+        user__telegram_id=call.from_user.id
+    ).last()
+    last_answer = session.answers.last()
+    if last_answer:
+        session.answers.remove(last_answer)
+    session.step -= 1
+    session.save()
+    ask_question(call)
+
+@bot.callback_query_handler(func=lambda c: c.data == "skip")
+def skip_question(call):
+    session = PricingSession.objects.filter(
+        user__telegram_id=call.from_user.id
+    ).last()
+    session.step += 1
+    session.save()
+    ask_question(call)
+
+def ask_question(call):
+    session = PricingSession.objects.filter(
+        user__telegram_id=call.from_user.id
+    ).last()
+    q = get_next_question(session)
+    if not q:
+        show_result(call)
+        return
+    text = f"""
+{q.text}
+💰 Current price: {session.price_preview}$
+"""
+    bot.edit_message_text(
+        text,
+        call.message.chat.id,
+        call.message.message_id,
+        reply_markup=answers_keyboard(q)
+    )
+
+def show_result(call):
+    session = PricingSession.objects.filter(
+        user__telegram_id=call.from_user.id
+    ).last()
+    price = calculate_preview(session)
+    # Build answers list
+    answer_lines = []
+    for ans in session.answers.all():
+        answer_lines.append(f"• {ans.text} 💲{ans.price_change}")
+    answers_text = "\n".join(answer_lines) if answer_lines else "No answers selected."
+    text = f"""
+📱 {session.model.text}
+💰 Final price: {price}$
+📝 Your choices:
+{answers_text}
+"""
+    bot.edit_message_text(
+        text,
+        call.message.chat.id,
+        call.message.message_id
+    )
 
 @bot.message_handler(commands=['start'])
 def start_handler(message):
     bot.send_message(message.chat.id, f"Salom, {message.from_user.full_name}!😊", reply_markup=main_menu())
+
+@bot.message_handler(func=lambda m: m.text == "📱 Telefonlarni narxlash 💲")
+def choose_model(message):
+    models = PricingNode.objects.filter(type="model")
+    kb = types.InlineKeyboardMarkup()
+    for m in models:
+        kb.add(
+            types.InlineKeyboardButton(
+                m.text,
+                callback_data=f"model_{m.id}"
+            )
+        )
+    bot.send_message(
+        message.chat.id,
+        "Telefon modelini tanlang:",
+        reply_markup=kb
+    )
+
+@bot.callback_query_handler(func=lambda c: c.data.startswith("model_"))
+def choose_model_callback(call):
+    model_id = int(call.data.split("_")[1])
+    model = PricingNode.objects.get(id=model_id)
+    # Create a new session for this user
+    session, created = PricingSession.objects.get_or_create(
+        user=TgUser.objects.get_or_create(telegram_id=call.from_user.id)[0],
+        model=model
+    )
+    # Reset previous answers if session already existed
+    if not created:
+        session.answers.clear()
+        session.step = 0
+        session.price_preview = model.price_change
+        session.save()
+    else:
+        session.price_preview = model.price_change
+        session.save()
+    # Ask first question
+    ask_question(call)
 
 
 @bot.message_handler(func=lambda m: m.text == "📢 E'lon joylash")

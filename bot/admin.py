@@ -1,7 +1,26 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from .models import TgUser, PhoneAd, PhoneAdImage, BroadcastTask
+from mptt.admin import DraggableMPTTAdmin
+from .models import TgUser, PhoneAd, PhoneAdImage, BroadcastTask, PricingNode, PricingSession
 
+@admin.register(PricingNode)
+class PricingNodeAdmin(DraggableMPTTAdmin):
+    mptt_indent_field = "text"
+    list_display = ('tree_actions', 'indented_title', 'type', 'price_change', 'order')
+    list_display_links = ('indented_title',)
+    list_filter = ("type",)
+    search_fields = ("text",)
+
+@admin.register(PricingSession)
+class PricingSessionAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "user",
+        "model",
+        "step",
+        "price_preview",
+    )
+    filter_horizontal = ("answers",)
 
 @admin.register(BroadcastTask)
 class BroadcastTaskAdmin(admin.ModelAdmin):
