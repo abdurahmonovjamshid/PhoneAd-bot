@@ -1,20 +1,18 @@
 import re
-
 import telebot
 from django.utils.timezone import now
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
-
 from conf.settings import HOST, TELEGRAM_BOT_TOKEN, ADMINS, CHANNEL_ID
 import json
 import traceback
 from django.http import HttpResponse
 from telebot import TeleBot, types
+
+from .helpers import calculate_preview, main_menu, ask_questions, ask_question, models_keyboard
 from .models import TgUser, PhoneAd, PhoneAdImage, BroadcastTask, PricingSession, PricingNode
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-
 import time
-
 from .utils import get_stats, make_caption
 
 bot = TeleBot(TELEGRAM_BOT_TOKEN, threaded=False)
@@ -26,7 +24,6 @@ def telegram_webhook(request):
             update_data = request.body.decode('utf-8')
             update_json = json.loads(update_data)
             update = telebot.types.Update.de_json(update_json)
-
             if update.message:
                 tg_user = update.message.from_user
                 telegram_id = tg_user.id
@@ -35,9 +32,7 @@ def telegram_webhook(request):
                 username = tg_user.username
                 is_bot = tg_user.is_bot
                 language_code = tg_user.language_code
-
                 deleted = False
-
                 tg_user_instance, _ = TgUser.objects.update_or_create(
                     telegram_id=telegram_id,
                     defaults={
@@ -49,7 +44,6 @@ def telegram_webhook(request):
                         'deleted': deleted,
                     }
                 )
-
             try:
                 if update.my_chat_member.new_chat_member.status == 'kicked':
                     telegram_id = update.my_chat_member.from_user.id
@@ -58,7 +52,6 @@ def telegram_webhook(request):
                     user.save()
             except:
                 pass
-
             bot.process_new_updates(
                 [telebot.types.Update.de_json(request.body.decode("utf-8"))])
 
@@ -67,102 +60,44 @@ def telegram_webhook(request):
         traceback.print_tb(e.__traceback__)
         return HttpResponse("error")
 
-def main_menu():
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.add("📢 E'lon joylash", "📱 Telefonlarni narxlash 💲")
-    markup.add("📜 Mening e'lonlarim", "📞 Admin bilan bog‘lanish")
-    return markup
-
-
-def step_keyboard():
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.add("⬅️ Orqaga qaytish", "❌ Bekor qilish")
-    return markup
-
-
-def ask_question(chat_id, step):
-    questions = {
-        1: "📷 Telefon rasmlarini yuboring (kamida 4 ta, ko‘pi bilan 6 ta):",
-        2: "📱 Telefon markasini kiriting (masalan: Iphone 16; Redmi Note 14 pro):",
-        3: "🛠 Telefon holatini kiriting (masalan: Yangi; Yaxshi; O'rtacha):",
-        4: "🔋 Batareka sig'imini kiriting (masalan: 4500 mAH; 95%):",
-        5: "💾 Telefon xotirasini kiriting",
-        6: "🎨 Rangini kiriting:",
-        7: "📦 Karobka/dokument bormi? (Bor / Yo'q)",
-        8: "💰 Narxni kiriting: (So'm / USD)",
-        9: "♻️ Obmen bormi? (Ha / Yo‘q):",
-        10: "🚩 Manzilni kiriting:",
-        11: "📞 Telefon raqamingizni yuboring:",
-    }
-    bot.send_message(chat_id, questions[step], reply_markup=step_keyboard())
-
-def get_next_question(session):
-    questions = PricingNode.objects.filter(
-        parent=session.model,
-        type="question"
-    ).order_by("order")
-    answered_ids = session.answers.values_list("id", flat=True)
-    for q in questions[session.step:]:
-        if q.show_if_answer:
-            if q.show_if_answer.id not in answered_ids:
-                continue
-        return q
-    return None
-
-def calculate_preview(session):
-    price = session.model.price_change
-    for ans in session.answers.all():
-        price += ans.price_change
-    return price
-
-def answers_keyboard(question):
-    kb = types.InlineKeyboardMarkup()
-    for ans in question.children.filter(type="answer"):
-        kb.add(
-            types.InlineKeyboardButton(
-                ans.text,
-                callback_data=f"ans_{ans.id}"
-            )
-        )
-    if question.allow_skip:
-        kb.add(
-            types.InlineKeyboardButton(
-                "⏭ Skip",
-                callback_data="skip"
-            )
-        )
-    kb.add(
-        types.InlineKeyboardButton(
-            "⬅ Back",
-            callback_data="back"
-        )
-    )
-    return kb
-
 @bot.callback_query_handler(func=lambda c: c.data.startswith("ans_"))
 def answer_handler(call):
     ans_id = int(call.data.split("_")[1])
     answer = PricingNode.objects.get(id=ans_id)
     session = PricingSession.objects.filter(
-        user__telegram_id=call.from_user.id
+        user__telegram_id=call.from_user.id,
+        is_active=True
     ).last()
     session.answers.add(answer)
     session.step += 1
     session.price_preview = calculate_preview(session)
     session.save()
-    ask_question(call)
+    ask_questions(call, bot)
 
 @bot.callback_query_handler(func=lambda c: c.data == "back")
 def go_back(call):
     session = PricingSession.objects.filter(
-        user__telegram_id=call.from_user.id
+        user__telegram_id=call.from_user.id,
+        is_active=True
     ).last()
-    last_answer = session.answers.last()
-    if last_answer:
-        session.answers.remove(last_answer)
+    if not session:
+        return
+    if session.step == 0:
+        session.is_active = False
+        session.save()
+        bot.edit_message_text(
+            "📱 Telefon modelini tanlang:",
+            call.message.chat.id,
+            call.message.message_id,
+            reply_markup=models_keyboard(0)
+        )
+        return
     session.step -= 1
     session.save()
-    ask_question(call)
+    last_answer = session.answers.last()
+    if last_answer:
+        last_answer.delete()
+    ask_questions(call, bot)
 
 @bot.callback_query_handler(func=lambda c: c.data == "skip")
 def skip_question(call):
@@ -171,48 +106,8 @@ def skip_question(call):
     ).last()
     session.step += 1
     session.save()
-    ask_question(call)
+    ask_questions(call, bot)
 
-def ask_question(call):
-    session = PricingSession.objects.filter(
-        user__telegram_id=call.from_user.id
-    ).last()
-    q = get_next_question(session)
-    if not q:
-        show_result(call)
-        return
-    text = f"""
-{q.text}
-💰 Current price: {session.price_preview}$
-"""
-    bot.edit_message_text(
-        text,
-        call.message.chat.id,
-        call.message.message_id,
-        reply_markup=answers_keyboard(q)
-    )
-
-def show_result(call):
-    session = PricingSession.objects.filter(
-        user__telegram_id=call.from_user.id
-    ).last()
-    price = calculate_preview(session)
-    # Build answers list
-    answer_lines = []
-    for ans in session.answers.all():
-        answer_lines.append(f"• {ans.text} 💲{ans.price_change}")
-    answers_text = "\n".join(answer_lines) if answer_lines else "No answers selected."
-    text = f"""
-📱 {session.model.text}
-💰 Final price: {price}$
-📝 Your choices:
-{answers_text}
-"""
-    bot.edit_message_text(
-        text,
-        call.message.chat.id,
-        call.message.message_id
-    )
 
 @bot.message_handler(commands=['start'])
 def start_handler(message):
@@ -220,42 +115,39 @@ def start_handler(message):
 
 @bot.message_handler(func=lambda m: m.text == "📱 Telefonlarni narxlash 💲")
 def choose_model(message):
-    models = PricingNode.objects.filter(type="model")
-    kb = types.InlineKeyboardMarkup()
-    for m in models:
-        kb.add(
-            types.InlineKeyboardButton(
-                m.text,
-                callback_data=f"model_{m.id}"
-            )
-        )
+    user = TgUser.objects.get(telegram_id=message.from_user.id)
+    # ❗ eski pricing sessionlarni tozalash
+    PricingSession.objects.filter(user=user).delete()
     bot.send_message(
         message.chat.id,
-        "Telefon modelini tanlang:",
-        reply_markup=kb
+        "📱 Telefon modelini tanlang:",
+        reply_markup=models_keyboard(0)
+    )
+
+@bot.callback_query_handler(func=lambda c: c.data.startswith("models_page_"))
+def models_page(call):
+    page = int(call.data.split("_")[-1])
+    bot.edit_message_reply_markup(
+        call.message.chat.id,
+        call.message.message_id,
+        reply_markup=models_keyboard(page)
     )
 
 @bot.callback_query_handler(func=lambda c: c.data.startswith("model_"))
 def choose_model_callback(call):
     model_id = int(call.data.split("_")[1])
     model = PricingNode.objects.get(id=model_id)
-    # Create a new session for this user
-    session, created = PricingSession.objects.get_or_create(
-        user=TgUser.objects.get_or_create(telegram_id=call.from_user.id)[0],
-        model=model
+    user, _ = TgUser.objects.get_or_create(
+        telegram_id=call.from_user.id
     )
-    # Reset previous answers if session already existed
-    if not created:
-        session.answers.clear()
-        session.step = 0
-        session.price_preview = model.price_change
-        session.save()
-    else:
-        session.price_preview = model.price_change
-        session.save()
-    # Ask first question
-    ask_question(call)
-
+    session = PricingSession.objects.create(
+        user=user,
+        model=model,
+        step=0,
+        price_preview=model.price_change,
+        is_active=True
+    )
+    ask_questions(call, bot)
 
 @bot.message_handler(func=lambda m: m.text == "📢 E'lon joylash")
 def start_ad_process(message):
@@ -278,7 +170,7 @@ def start_ad_process(message):
         status='active'
     )
 
-    ask_question(message.chat.id, 1)
+    ask_question(message.chat.id, 1, bot)
 
 @bot.message_handler(commands=["send_to_all"])
 def handle_send_to_all(message):
@@ -300,10 +192,8 @@ def stats_handler(message):
     if str(message.from_user.id) not in ADMINS:  # optional admin check
         bot.reply_to(message, "❌ You don’t have permission.")
         return
-
     stats_text = get_stats()
     bot.send_message(message.chat.id, stats_text, parse_mode="HTML")
-
 
 @bot.message_handler(commands=["status"])
 def broadcast_status(message):
@@ -331,18 +221,16 @@ def broadcast_status(message):
 @bot.message_handler(func=lambda m: m.text in ["❌ Bekor qilish", "⬅️ Orqaga qaytish"])
 def cancel_or_back(message):
     tg_user = TgUser.objects.get(telegram_id=message.from_user.id)
-
     if message.text == "❌ Bekor qilish":
         PhoneAd.objects.filter(user=tg_user, status='active', marka='').delete()
         tg_user.step = 0
         tg_user.save()
         bot.send_message(message.chat.id, "❌ E'lon berish bekor qilindi", reply_markup=main_menu())
-
     elif message.text == "⬅️ Orqaga qaytish":
         if tg_user.step > 1:
             tg_user.step -= 1
             tg_user.save()
-            ask_question(message.chat.id, tg_user.step)
+            ask_question(message.chat.id, tg_user.step, bot)
         else:
             bot.send_message(message.chat.id, "⏪ Boshlanishga qaytdingiz", reply_markup=main_menu())
             tg_user.step = 0
@@ -352,13 +240,9 @@ def cancel_or_back(message):
 def handle_forwarded_post(message):
     channelid = message.forward_from_chat.id
     original_msg_id = message.forward_from_message_id
-
-    # Only allow specific admins
     if str(message.from_user.id) not in ADMINS or str(channelid) != CHANNEL_ID[0]:
         bot.reply_to(message, "❌ Sizda ruxsat yo'q.")
         return
-
-    # Handle text messages
     if message.text:
         old_text = message.text
         if "#Продается" in old_text:
@@ -367,8 +251,6 @@ def handle_forwarded_post(message):
             bot.reply_to(message, "✅ Post tahrir qilindi: #sotildi")
         else:
             bot.reply_to(message, "ℹ️ Bu postda #Продается yo'q.")
-
-    # Handle media with caption
     elif message.caption:
         old_caption = message.caption
         if "#Продается" in old_caption:
@@ -377,7 +259,6 @@ def handle_forwarded_post(message):
             bot.reply_to(message, "✅ Post tahrir qilindi: #sotildi")
         else:
             bot.reply_to(message, "ℹ️ Bu postda #Продается yo'q.")
-
 
 @bot.message_handler(content_types=['photo'])
 def handle_photos(message):
@@ -394,7 +275,6 @@ def handle_photos(message):
         ad.save()
         tg_user.step = 0
         tg_user.save()
-        # Show preview again
         caption = make_caption(ad) + "\n💳 To‘lov tasdiqlangan."
         photos = list(ad.images.all())
         if photos:
@@ -421,13 +301,12 @@ def handle_photos(message):
     ad = PhoneAd.objects.filter(user=tg_user, status='active').latest('created_at')
     file_id = message.photo[-1].file_id
     PhoneAdImage.objects.create(ad=ad, file_id=file_id)
-
     image_count = ad.images.count()
     if image_count >= 4:
         bot.send_message(message.chat.id, f"✅ {image_count} ta rasm qabul qilindi.")
         tg_user.step = 2
         tg_user.save()
-        ask_question(message.chat.id, 2)
+        ask_question(message.chat.id, 2, bot)
     else:
         bot.send_message(message.chat.id, f"📷 {image_count} ta rasm qo‘shildi. Yana rasm yuboring.")
 
@@ -435,11 +314,9 @@ def handle_photos(message):
 def my_ads(message):
     tg_user = TgUser.objects.get(telegram_id=message.from_user.id)
     ads = PhoneAd.objects.filter(user=tg_user).order_by('-created_at')
-
     if not ads.exists():
         bot.send_message(message.chat.id, "📭 Sizda hali e'lonlar yo'q.")
         return
-
     if ads.count() <= 3:
         # Directly send all ads
         for ad in ads:
@@ -451,7 +328,6 @@ def my_ads(message):
             # inline monospace with Markdown
             lines.append(f"""`{i}. {ad.marka} {ad.narx_usd_sum} {ad.created_at.strftime("%d.%m.%y")}`""")
         ad_list_text = "📜 E'lonlaringiz ro'yxati:\n\n" + "\n".join(lines)
-
         # Numbered buttons where label = index, callback_data = real ad.id
         markup = InlineKeyboardMarkup(row_width=4)
         buttons = [InlineKeyboardButton(str(i), callback_data=f"myad_{ad.id}")
@@ -459,9 +335,7 @@ def my_ads(message):
         # add in rows of 4
         for start in range(0, len(buttons), 4):
             markup.row(*buttons[start:start+4])
-
         bot.send_message(message.chat.id, ad_list_text, parse_mode="Markdown", reply_markup=markup)
-
 
 @bot.callback_query_handler(func=lambda c: c.data.startswith("myad_"))
 def show_ad_detail(call):
@@ -471,16 +345,13 @@ def show_ad_detail(call):
     except (ValueError, PhoneAd.DoesNotExist):
         bot.answer_callback_query(call.id, "❌ E'lon topilmadi.")
         return
-
     send_ad_details(call.message.chat.id, ad)
     bot.answer_callback_query(call.id)
-
 
 # Helper function to send ad with photos
 def send_ad_details(chat_id, ad: PhoneAd):
     kanal_status = "✅" if ad.is_published == True else "❌"
     caption = make_caption(ad) + f"\n📡 Kanalga joylangan: {kanal_status}"
-
     images = ad.images.all()
     if images.exists():
         if images.count() == 1:
@@ -516,7 +387,6 @@ def contact_admins(message):
 @bot.message_handler(content_types=['text'])
 def handle_steps(message):
     tg_user = TgUser.objects.get(telegram_id=message.from_user.id)
-    # Skip cancel/back here
     if message.text in ["❌ Bekor qilish", "⬅️ Orqaga qaytish"]:
         return
     try:
@@ -555,20 +425,14 @@ def handle_steps(message):
         tg_user.step = 8
     elif tg_user.step == 8:
         text = message.text.strip().lower()
-        # Normalize input (remove commas, extra spaces)
         text_clean = text.replace(",", "").replace(" ", "")
-        currency = None
-        amount = None
-        # Detect USD
         if text_clean.endswith("$") or text_clean.endswith("usd"):
             currency = "USD"
             text_clean = text_clean.replace("$", "").replace("usd", "")
-        # Detect UZS
         elif text_clean.endswith("so'm") or text_clean.endswith("som") or text_clean.endswith("uzs"):
             currency = "UZS"
             text_clean = text_clean.replace("so'm", "").replace("som", "").replace("uzs", "")
         else:
-            # If only numbers, default to USD
             if text_clean.isdigit():
                 currency = "USD"
             else:
@@ -614,19 +478,16 @@ def handle_steps(message):
         )
         bot.send_message(message.chat.id, "❓ Reklamani chiqarish pullik. To‘lov qildingizmi?", reply_markup=kb)
         return
-
     tg_user.save()
     if tg_user.step != 0:
-        ask_question(message.chat.id, tg_user.step)
+        ask_question(message.chat.id, tg_user.step, bot)
 
 @bot.callback_query_handler(func=lambda c: c.data.startswith("ad_payment_"))
 def cb_payment(call):
     action, ad_id = call.data.split(":")
     ad = PhoneAd.objects.get(id=ad_id)
     tg_user = TgUser.objects.get(telegram_id=call.from_user.id)
-
     if action == "ad_payment_no":
-        # Show preview + send/delete buttons (old logic)
         caption = make_caption(ad)
         photos = list(ad.images.all())
         if photos:
@@ -683,13 +544,9 @@ def cb_user_send_to_admin(call):
             first_msg = msg_list[0]
         else:
             first_msg  = bot.send_message(admin_chat_id, caption, parse_mode='HTML')
-
-        # Send payment screenshot separately
         if ad.payment_image:
             bot.send_photo(admin_chat_id, ad.payment_image, caption="💳 To‘lov cheki", reply_to_message_id=first_msg.message_id)
-
         bot.send_message(admin_chat_id, "E'lonni boshqarish:", reply_markup=admin_kb)
-
     bot.answer_callback_query(call.id, "Adminga yuborildi ✅")
     try:
         bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
@@ -705,7 +562,6 @@ def cb_user_delete(call):
     except PhoneAd.DoesNotExist:
         bot.answer_callback_query(call.id, "E'lon topilmadi.")
         return
-
     ad.delete()  # PhoneAdImage lar CASCADE bilan o‘chadi
     bot.answer_callback_query(call.id, "E'lon o‘chirildi.")
     try:
@@ -732,8 +588,6 @@ def cb_admin_activate(call):
         text=f"`{ad.marka} {ad.narx_usd_sum}` E'loningiz tasdiqlandi!",
         parse_mode="Markdown"
     )
-
-    # Kanal uchun caption
     caption = make_caption(ad)
     imgs = list(ad.images.all())
     if imgs:
@@ -746,11 +600,9 @@ def cb_admin_activate(call):
         bot.send_media_group(CHANNEL_ID[0], media)
     else:
         bot.send_message(CHANNEL_ID[0], caption, parse_mode='HTML')
-
     ad.status = 'active'
     ad.is_published = True
     ad.save()
-
     bot.answer_callback_query(call.id, "Kanalga joylandi ✅")
     try:
         bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
@@ -768,7 +620,6 @@ def cb_admin_delete(call):
     except PhoneAd.DoesNotExist:
         bot.answer_callback_query(call.id, "E'lon topilmadi.")
         return
-
     ad.delete()
     bot.answer_callback_query(call.id, "E'lon o‘chirildi.")
     try:
@@ -785,22 +636,15 @@ def show_ad_detail(call):
     bot.answer_callback_query(call.id)
 
 BATCH_SIZE = 100  # adjust based on cron interval
-
 @csrf_exempt
 def run_broadcast(request):
     task = BroadcastTask.objects.filter(finished=False).order_by("created_at").first()
     if not task:
         return JsonResponse({"status": "idle", "message": "No active tasks"})
-
-    # initialize total if not set
     if task.total == 0:
         task.total = TgUser.objects.count()
         task.save(update_fields=["total"])
-
-    # find users after last progress
     users = TgUser.objects.filter(id__gt=task.sent + task.failed).order_by("id")[:BATCH_SIZE]
-
-    # if no users left → finish task
     if not users:
         task.finished = True
         task.finished_at = now()
@@ -813,10 +657,8 @@ def run_broadcast(request):
             "failed": task.failed,
             "progress": f"{task.sent}/{task.total}"
         })
-
     sent = 0
     failed = 0
-
     for user in users:
         try:
             bot.copy_message(
@@ -829,15 +671,11 @@ def run_broadcast(request):
         except Exception as e:
             task.failed += 1
             failed += 1
-
             if "forbidden" in str(e).lower() or "blocked" in str(e).lower():
                 user.deleted = True
                 user.save(update_fields=["deleted"])
-
         time.sleep(0.05)  # ~20 msg/sec safe rate
-
     task.save(update_fields=["sent", "failed"])
-
     return JsonResponse({
         "status": "ok",
         "task_id": task.id,

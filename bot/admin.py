@@ -1,16 +1,45 @@
 from django.contrib import admin
-from django.utils.html import format_html
+from import_export.widgets import ForeignKeyWidget
 from mptt.admin import DraggableMPTTAdmin
+from import_export.admin import ImportExportModelAdmin
+from import_export import resources, fields
 from .models import TgUser, PhoneAd, PhoneAdImage, BroadcastTask, PricingNode, PricingSession
 
-@admin.register(PricingNode)
-class PricingNodeAdmin(DraggableMPTTAdmin):
-    mptt_indent_field = "text"
-    list_display = ('tree_actions', 'indented_title', 'type', 'price_change', 'order')
-    list_display_links = ('indented_title',)
-    list_filter = ("type",)
-    search_fields = ("text",)
+# Inline for children nodes (optional)
+class PricingNodeInline(admin.TabularInline):
+    model = PricingNode
+    fk_name = "parent"
+    extra = 1
 
+
+class PricingNodeResource(resources.ModelResource):
+    parent = fields.Field(
+        column_name='parent',
+        attribute='parent',
+        widget=ForeignKeyWidget(PricingNode, 'id')  # resolves parent by ID
+    )
+    show_if_answer = fields.Field(
+        column_name='show_if_answer',
+        attribute='show_if_answer',
+        widget=ForeignKeyWidget(PricingNode, 'id')
+    )
+    class Meta:
+        model = PricingNode
+        import_id_fields = ('id',)
+        fields = (
+            'id', 'parent', 'type', 'text', 'label', 'icon',
+            'price_change', 'order', 'show_if_answer', 'allow_skip', 'final_text'
+        )
+
+# Admin
+@admin.register(PricingNode)
+class PricingNodeAdmin(ImportExportModelAdmin, DraggableMPTTAdmin):
+    inlines = [PricingNodeInline]
+    resource_class = PricingNodeResource
+    list_display = ('tree_actions', 'indented_title', 'type', 'label', 'icon', 'price_change')
+    list_display_links = ('indented_title',)
+    search_fields = ('text', 'label')
+    list_filter = ('type',)
 @admin.register(PricingSession)
 class PricingSessionAdmin(admin.ModelAdmin):
     list_display = (

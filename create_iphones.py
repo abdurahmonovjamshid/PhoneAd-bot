@@ -1,138 +1,204 @@
 import os
 import django
+
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "conf.settings")
 django.setup()
+
 from bot.models import PricingNode
 
-# Clear old iPhone models (optional)
+
+print("🧹 Old models clearing...")
 PricingNode.objects.filter(type="model").delete()
 
-# =========================
-# iPhone 15 Pro Max
-# =========================
-iphone_15_pro_max = PricingNode.objects.create(
-    type="model",
-    text="iPhone 15 Pro Max",
-    price_change=1000,  # Base price
-    order=1
-)
 
-# -------------------------
-# Memory question
-# -------------------------
-memory_q = PricingNode.objects.create(
-    parent=iphone_15_pro_max,
-    type="question",
-    text="Choose memory size",
-    order=1
-)
+def add_question(model, text, order, answers, allow_skip=False):
+    q = PricingNode.objects.create(
+        parent=model,
+        type="question",
+        text=text,
+        order=order,
+        allow_skip=allow_skip
+    )
 
-PricingNode.objects.create(parent=memory_q, type="answer", text="128GB", price_change=0, order=1)
-PricingNode.objects.create(parent=memory_q, type="answer", text="256GB", price_change=100, order=2)
-PricingNode.objects.create(parent=memory_q, type="answer", text="512GB", price_change=250, order=3)
-PricingNode.objects.create(parent=memory_q, type="answer", text="1TB", price_change=400, order=4)
+    for i, ans in enumerate(answers, start=1):
+        PricingNode.objects.create(
+            parent=q,
+            type="answer",
+            text=ans["text"],
+            price_change=ans["price"],
+            order=i
+        )
 
-# -------------------------
-# Color question
-# -------------------------
-color_q = PricingNode.objects.create(
-    parent=iphone_15_pro_max,
-    type="question",
-    text="Select color",
-    order=2
-)
 
-PricingNode.objects.create(parent=color_q, type="answer", text="Silver", price_change=0, order=1)
-PricingNode.objects.create(parent=color_q, type="answer", text="Graphite", price_change=0, order=2)
-PricingNode.objects.create(parent=color_q, type="answer", text="Gold", price_change=20, order=3)
-PricingNode.objects.create(parent=color_q, type="answer", text="Blue", price_change=10, order=4)
+def create_model(name, price, order):
+    print(f"📱 Creating {name}")
 
-# -------------------------
-# Battery health question
-# -------------------------
-battery_q = PricingNode.objects.create(
-    parent=iphone_15_pro_max,
-    type="question",
-    text="Battery health",
-    order=3
-)
+    model = PricingNode.objects.create(
+        type="model",
+        text=name,
+        price_change=price,
+        order=order
+    )
 
-PricingNode.objects.create(parent=battery_q, type="answer", text="Above 90%", price_change=0, order=1)
-PricingNode.objects.create(parent=battery_q, type="answer", text="Below 90%", price_change=-50, order=2)
+    # 1 MEMORY
+    add_question(
+        model,
+        "📦 Xotira hajmini tanlang",
+        1,
+        [
+            {"text": "64GB", "price": 0},
+            {"text": "128GB", "price": 40},
+            {"text": "256GB", "price": 90},
+            {"text": "512GB", "price": 180},
+            {"text": "1TB", "price": 300},
+        ]
+    )
 
-# -------------------------
-# Box and accessories
-# -------------------------
-box_q = PricingNode.objects.create(
-    parent=iphone_15_pro_max,
-    type="question",
-    text="Does the phone come with box?",
-    order=4
-)
+    # 2 BATTERY
+    add_question(
+        model,
+        "🔋 Batareya holati",
+        2,
+        [
+            {"text": "90-100%", "price": 0},
+            {"text": "85-89%", "price": -30},
+            {"text": "80-84%", "price": -60},
+            {"text": "75-79%", "price": -100},
+            {"text": "75% dan past", "price": -150},
+        ]
+    )
 
-PricingNode.objects.create(parent=box_q, type="answer", text="Yes", price_change=20, order=1)
-PricingNode.objects.create(parent=box_q, type="answer", text="No", price_change=0, order=2)
+    # 3 SCREEN
+    add_question(
+        model,
+        "📱 Ekran holati",
+        3,
+        [
+            {"text": "Ideal ✨", "price": 0},
+            {"text": "Mayda chizilgan", "price": -25},
+            {"text": "Chuqur chizilgan", "price": -70},
+            {"text": "Yorilgan", "price": -200},
+        ]
+    )
 
-# -------------------------
-# Country of purchase
-# -------------------------
-country_q = PricingNode.objects.create(
-    parent=iphone_15_pro_max,
-    type="question",
-    text="Country of purchase",
-    order=5
-)
+    # 4 FACE ID
+    add_question(
+        model,
+        "🔐 FaceID ishlaydimi?",
+        4,
+        [
+            {"text": "Ha ishlaydi ✅", "price": 0},
+            {"text": "Ba'zan ishlaydi ⚠️", "price": -40},
+            {"text": "Umuman ishlamaydi ❌", "price": -120},
+        ]
+    )
 
-PricingNode.objects.create(parent=country_q, type="answer", text="USA", price_change=0, order=1)
-PricingNode.objects.create(parent=country_q, type="answer", text="Other", price_change=-10, order=2)
+    # 5 CAMERA
+    add_question(
+        model,
+        "📷 Kamera holati",
+        5,
+        [
+            {"text": "Ideal", "price": 0},
+            {"text": "Fokus muammosi", "price": -40},
+            {"text": "Ishlamaydi", "price": -150},
+        ]
+    )
 
-# -------------------------
-# Additional info
-# -------------------------
-info_q = PricingNode.objects.create(
-    parent=iphone_15_pro_max,
-    type="question",
-    text="Any extra info to mention?",
-    order=6,
-    allow_skip=True
-)
+    # 6 BACK
+    add_question(
+        model,
+        "🔎 Orqa korpus holati",
+        6,
+        [
+            {"text": "Ideal", "price": 0},
+            {"text": "Chizilgan", "price": -20},
+            {"text": "Yorilgan", "price": -120},
+        ]
+    )
 
-PricingNode.objects.create(parent=info_q, type="answer", text="No scratches, perfect condition", price_change=50, order=1)
-PricingNode.objects.create(parent=info_q, type="answer", text="Some scratches", price_change=-20, order=2)
-PricingNode.objects.create(parent=info_q, type="answer", text="Minor screen crack", price_change=-100, order=3)
-PricingNode.objects.create(parent=info_q, type="answer", text="Other defects", price_change=-150, order=4)
+    # 7 BOX
+    add_question(
+        model,
+        "📦 Qutisi bormi?",
+        7,
+        [
+            {"text": "Ha bor", "price": 20},
+            {"text": "Yo‘q", "price": 0},
+        ]
+    )
 
-# =========================
-# iPhone 15
-# =========================
-iphone_15 = PricingNode.objects.create(
-    type="model",
-    text="iPhone 15",
-    price_change=800,
-    order=2
-)
+    # 8 COUNTRY
+    add_question(
+        model,
+        "🌍 Telefon qaysi region?",
+        8,
+        [
+            {"text": "USA 🇺🇸", "price": 0},
+            {"text": "Japan 🇯🇵", "price": 0},
+            {"text": "Europe 🇪🇺", "price": 0},
+            {"text": "Boshqa", "price": -20},
+        ]
+    )
 
-# Reuse the same question types for simplicity
-for parent_model in [iphone_15]:
-    mem_q = PricingNode.objects.create(parent=parent_model, type="question", text="Choose memory size", order=1)
-    PricingNode.objects.create(parent=mem_q, type="answer", text="128GB", price_change=0, order=1)
-    PricingNode.objects.create(parent=mem_q, type="answer", text="256GB", price_change=100, order=2)
-    PricingNode.objects.create(parent=mem_q, type="answer", text="512GB", price_change=250, order=3)
+    # 9 SIM LOCK
+    add_question(
+        model,
+        "📶 SIM lock bormi?",
+        9,
+        [
+            {"text": "Factory unlocked", "price": 0},
+            {"text": "Carrier lock", "price": -80},
+        ]
+    )
 
-    col_q = PricingNode.objects.create(parent=parent_model, type="question", text="Select color", order=2)
-    PricingNode.objects.create(parent=col_q, type="answer", text="Pink", price_change=0, order=1)
-    PricingNode.objects.create(parent=col_q, type="answer", text="Green", price_change=0, order=2)
-    PricingNode.objects.create(parent=col_q, type="answer", text="Blue", price_change=10, order=3)
-    PricingNode.objects.create(parent=col_q, type="answer", text="Black", price_change=0, order=4)
+    # 10 EXTRA
+    add_question(
+        model,
+        "📝 Qo‘shimcha holat",
+        10,
+        [
+            {"text": "Juda toza ✨", "price": 40},
+            {"text": "Oddiy ishlatilgan", "price": 0},
+            {"text": "Kuchli ishlatilgan", "price": -80},
+        ],
+        allow_skip=True
+    )
 
-    battery_q = PricingNode.objects.create(parent=parent_model, type="question", text="Battery health", order=3)
-    PricingNode.objects.create(parent=battery_q, type="answer", text="Above 90%", price_change=0, order=1)
-    PricingNode.objects.create(parent=battery_q, type="answer", text="Below 90%", price_change=-50, order=2)
 
-    box_q = PricingNode.objects.create(parent=parent_model, type="question", text="Does the phone come with box?", order=4)
-    PricingNode.objects.create(parent=box_q, type="answer", text="Yes", price_change=20, order=1)
-    PricingNode.objects.create(parent=box_q, type="answer", text="No", price_change=0, order=2)
+models = [
+    ("iPhone X",150),
+    ("iPhone XR",180),
+    ("iPhone XS",200),
+    ("iPhone XS Max",230),
+    ("iPhone 11",260),
+    ("iPhone 11 Pro",320),
+    ("iPhone 11 Pro Max",360),
+    ("iPhone 12",340),
+    ("iPhone 12 Pro",420),
+    ("iPhone 12 Pro Max",470),
+    ("iPhone 13",450),
+    ("iPhone 13 Pro",560),
+    ("iPhone 13 Pro Max",620),
+    ("iPhone 14",580),
+    ("iPhone 14 Plus",620),
+    ("iPhone 14 Pro",700),
+    ("iPhone 14 Pro Max",760),
+    ("iPhone 15",720),
+    ("iPhone 15 Plus",760),
+    ("iPhone 15 Pro",880),
+    ("iPhone 15 Pro Max",960),
+    ("iPhone 16",820),
+    ("iPhone 16 Pro",950),
+    ("iPhone 16 Pro Max",1050),
+    ("iPhone 17",900),
+    ("iPhone 17 Pro",1100),
+    ("iPhone 17 Pro Max",1200),
+]
 
-    country_q = PricingNode.objects.create(parent=parent_model, type="question", text="Country of purchase", order=5)
-    PricingNode.objects.create(parent=country_q, type="answer", text="USA", price_change=0, order=1)
-    PricingNode.objects.create(parent=country_q, type="answer", text="Other", price_change=-10, order=2)
+
+for i, m in enumerate(models, start=1):
+    create_model(m[0], m[1], i)
+
+
+print("✅ All iPhone models created successfully")

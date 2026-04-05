@@ -102,9 +102,18 @@ class PricingNode(MPTTModel):
     )
     type = models.CharField(max_length=10, choices=NODE_TYPES)
     text = models.CharField(max_length=255)
+    label = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text="Label shown in result (example: Storage, Color)"
+    )
+    icon = models.CharField(
+        max_length=10,
+        blank=True,
+        help_text="Emoji icon (💾 🎨 🔋 etc)"
+    )
     price_change = models.IntegerField(default=0)
     order = models.IntegerField(default=0)
-    # conditional question
     show_if_answer = TreeForeignKey(
         "self",
         null=True,
@@ -113,11 +122,10 @@ class PricingNode(MPTTModel):
         related_name="conditional_children"
     )
     allow_skip = models.BooleanField(default=False)
-    final_text = models.TextField(blank=True)
+    final_text = models.TextField(blank=True, null=True)
     class MPTTMeta:
         order_insertion_by = ['order']
     def __str__(self):
-        # nice display in admin tree
         if self.type == "answer":
             return f"{self.text} 💲{self.price_change}"
         return self.text
@@ -134,5 +142,6 @@ class PricingSession(models.Model):
         blank=True,
         related_name="answer_sessions"
     )
+    is_active = models.BooleanField(default=True)
     step = models.IntegerField(default=0)
     price_preview = models.IntegerField(default=0)
