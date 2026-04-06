@@ -1,15 +1,18 @@
 import re
+from datetime import timedelta
+
 import telebot
 from django.utils.timezone import now
-from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
+from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, InputMediaPhoto
 from conf.settings import HOST, TELEGRAM_BOT_TOKEN, ADMINS, CHANNEL_ID
 import json
 import traceback
 from django.http import HttpResponse
 from telebot import TeleBot, types
 
-from .helpers import calculate_preview, main_menu, ask_questions, ask_question, models_keyboard
-from .models import TgUser, PhoneAd, PhoneAdImage, BroadcastTask, PricingSession, PricingNode
+from .helpers import calculate_preview, main_menu, ask_questions, ask_question, models_keyboard, \
+    pricing_packages_keyboard, PRICING_PACKAGES, PACKAGE_NAMES
+from .models import TgUser, PhoneAd, PhoneAdImage, BroadcastTask, PricingSession, PricingNode, PricingSessionImage
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 import time
@@ -116,12 +119,53 @@ def start_handler(message):
 @bot.message_handler(func=lambda m: m.text == "📱 Telefonlarni narxlash 💲")
 def choose_model(message):
     user = TgUser.objects.get(telegram_id=message.from_user.id)
-    # ❗ eski pricing sessionlarni tozalash
+    if not user.can_use_pricing():
+        bot.send_message(
+            message.chat.id,
+            "❌ Sizda narxlash limiti tugagan.\nPaket tanlang:",
+            reply_markup=pricing_packages_keyboard()
+        )
+        return
+    user.pricing_used += 1
+    user.save()
     PricingSession.objects.filter(user=user).delete()
     bot.send_message(
         message.chat.id,
         "📱 Telefon modelini tanlang:",
         reply_markup=models_keyboard(0)
+    )
+
+@bot.callback_query_handler(func=lambda c: c.data.startswith("pkg_"))
+def choose_package(call):
+    key = call.data.split("_")[1]
+    pkg = PRICING_PACKAGES[key]
+    text = f"📦 Paket:\n\n"
+    if "count" in pkg:
+        text += f"{pkg['count']} ta narxlash\n"
+    if "days" in pkg:
+        text += f"{pkg['days']} kun foydalanish\n"
+    text += f"\n💰 Narxi: {pkg['price']} so'm"
+    kb = InlineKeyboardMarkup()
+    kb.add(
+        InlineKeyboardButton("💳 To'lov qilish", callback_data=f"pay_{key}")
+    )
+    bot.edit_message_text(
+        text,
+        call.message.chat.id,
+        call.message.message_id,
+        reply_markup=kb
+    )
+
+@bot.callback_query_handler(func=lambda c: c.data.startswith("pay_"))
+def request_payment(call):
+    key = call.data.split("_")[1]
+    user = TgUser.objects.get(telegram_id=call.from_user.id)
+    user.step = 200
+    user.step_package = key   # store selected package temporarily
+    user.save()
+    bot.send_message(
+        call.message.chat.id,
+        "💳 To'lov chekini rasm sifatida yuboring."
     )
 
 @bot.callback_query_handler(func=lambda c: c.data.startswith("models_page_"))
@@ -148,14 +192,36 @@ def choose_model_callback(call):
         is_active=True
     )
     ask_questions(call, bot)
+    user.save()
+
+@bot.callback_query_handler(func=lambda c: c.data.startswith("post_price:"))
+def post_with_price(call):
+    session_id = int(call.data.split(":")[1])
+    session = PricingSession.objects.get(id=session_id)
+    session.final_price = session.price_preview
+    session.step = 300
+    session.save()
+    bot.send_message(
+        call.message.chat.id,
+        "📷 Telefon rasmlarini yuboring (kamida 4 ta):"
+    )
+
+@bot.callback_query_handler(func=lambda c: c.data.startswith("change_price:"))
+def change_price(call):
+    session_id = int(call.data.split(":")[1])
+    session = PricingSession.objects.get(id=session_id)
+    session.step = 301
+    session.save()
+    bot.send_message(
+        call.message.chat.id,
+        "💰 Yangi narxni kiriting:"
+    )
 
 @bot.message_handler(func=lambda m: m.text == "📢 E'lon joylash")
 def start_ad_process(message):
     tg_user = TgUser.objects.get(telegram_id=message.from_user.id)
     tg_user.step = 1
     tg_user.save()
-
-    # Create empty ad
     PhoneAd.objects.create(
         user=tg_user,
         marka='',
@@ -260,9 +326,109 @@ def handle_forwarded_post(message):
         else:
             bot.reply_to(message, "ℹ️ Bu postda #Продается yo'q.")
 
+
 @bot.message_handler(content_types=['photo'])
 def handle_photos(message):
     tg_user = TgUser.objects.get(telegram_id=message.from_user.id)
+    session = PricingSession.objects.filter(user=tg_user).last()
+    if session:
+        # PHONE PHOTOS
+        if session.step == 300:
+            file_id = message.photo[-1].file_id
+            PricingSessionImage.objects.create(
+                session=session,
+                file_id=file_id
+            )
+            count = session.images.count()
+            if count >= 4:
+                session.step = 302
+                session.save()
+                bot.send_message(
+                    message.chat.id,
+                    "♻️ Obmen bormi? (Ha / Yo‘q)"
+                )
+            else:
+                bot.send_message(
+                    message.chat.id,
+                    f"📷 {count} ta rasm qabul qilindi. Yana yuboring."
+                )
+            return
+        # PAYMENT CHECK
+        if session.step == 305:
+            file_id = message.photo[-1].file_id
+            session.payment_image = file_id
+            session.step = 306
+            session.save()
+            text = (
+                f"📢 Yangi e'lon tasdiqlash\n\n"
+                f"💰 Narx: {session.final_price}\n"
+                f"♻️ Obmen: {'Bor' if session.obmen else 'Yo‘q'}\n"
+                f"🚩 Manzil: {session.manzil}\n"
+                f"📞 Tel: {session.tel_raqam}"
+            )
+            for admin in ADMINS:
+                kb = InlineKeyboardMarkup()
+                kb.add(
+                    InlineKeyboardButton(
+                        "✅ Tasdiqlash",
+                        callback_data=f"approve_price_{session.id}"
+                    ),
+                    InlineKeyboardButton(
+                        "❌ Rad etish",
+                        callback_data=f"reject_price_{session.id}"
+                    )
+                )
+                bot.send_photo(
+                    admin,
+                    file_id,
+                    caption=text,
+                    reply_markup=kb
+                )
+            bot.send_message(
+                message.chat.id,
+                "✅ Chek yuborildi. Admin tasdiqlashini kuting."
+            )
+            return
+
+    if tg_user.step == 200 and message.photo:
+        file_id = message.photo[-1].file_id
+        pkg_key = tg_user.step_package
+        username = f"@{tg_user.username}" if tg_user.username else tg_user.first_name
+        package_name = PACKAGE_NAMES.get(pkg_key, pkg_key)
+
+        # Caption for admins
+        caption = (
+            "💳 <b>Yangi to'lov cheki</b>\n\n"
+            f"👤 <b>Foydalanuvchi:</b> {username}\n"
+            f"🆔 <b>User ID:</b> {tg_user.id}\n"
+            f"📦 <b>Paket:</b> {package_name}\n"
+            f"⏰ <b>Vaqt:</b> {now().strftime('%d-%m-%Y %H:%M')}"
+        )
+        # ✅ Send confirmation to user immediately
+        bot.send_message(
+            message.chat.id,
+            "📩 Sizning to'lov chek qabul qilindi.\n"
+            "⏳ Admin tasdiqlashi kutilmoqda."
+        )
+        # Send photo to admins
+        for admin in ADMINS:
+            kb = InlineKeyboardMarkup()
+            kb.add(
+                InlineKeyboardButton("✅ Tasdiqlash", callback_data=f"approve_{tg_user.id}_{pkg_key}"),
+                InlineKeyboardButton("❌ Rad etish", callback_data=f"reject_{tg_user.id}")
+            )
+            bot.send_photo(
+                admin,
+                file_id,
+                caption=caption,
+                parse_mode="HTML",
+                reply_markup=kb
+            )
+    else:
+        bot.send_message(
+            message.chat.id,
+            "⚠️ Iltimos, to'lov chekni yuboring."
+        )
     if tg_user.step == 13:
         try:
             ad = PhoneAd.objects.filter(user=tg_user, status='active').latest('created_at')
@@ -309,6 +475,33 @@ def handle_photos(message):
         ask_question(message.chat.id, 2, bot)
     else:
         bot.send_message(message.chat.id, f"📷 {image_count} ta rasm qo‘shildi. Yana rasm yuboring.")
+
+@bot.callback_query_handler(func=lambda c: c.data.startswith("approve_") and not c.data.startswith("approve_price_"))
+def approve_payment(call):
+    print(call.data)
+    _, user_id, pkg_key = call.data.split("_")
+    user = TgUser.objects.get(id=user_id)
+    pkg = PRICING_PACKAGES.get(pkg_key)
+    if not pkg:
+        bot.answer_callback_query(call.id, "❌ Paket topilmadi.")
+        return
+    text = ""
+    if "count" in pkg:
+        user.pricing_limit += pkg["count"]
+        text = f"✅ To'lov tasdiqlandi!\n\n📱 Telefon narxlash funksiyasidan {pkg['count']} marta foydalanishingiz mumkin."
+    if "days" in pkg:
+        user.pricing_expire = now() + timedelta(days=pkg["days"])
+        user.pricing_limit = 999999
+        text = f"✅ To'lov tasdiqlandi!\n\n📱 Telefon narxlash funksiyasidan {pkg['days']} kun davomida foydalanishingiz mumkin."
+    user.step = 0
+    user.step_package = None
+    user.save()
+    bot.send_message(user.telegram_id, text)
+    bot.edit_message_reply_markup(
+        call.message.chat.id,
+        call.message.message_id,
+        reply_markup=None
+    )
 
 @bot.message_handler(func=lambda m: m.text == "📜 Mening e'lonlarim")
 def my_ads(message):
@@ -384,15 +577,134 @@ def contact_admins(message):
         "Adminlar bilan bog‘lanishingiz mumkin 👇",
         reply_markup=markup
     )
+
+def build_channel_caption(session):
+    """
+    Build nicely formatted caption for channel post with question: answer format
+    """
+    model_name = session.model.text if session.model else "N/A"
+
+    # Build answers: "Question: Answer"
+    lines = [f"📱 Model: {model_name}"]
+
+    for ans in session.answers.select_related("parent").order_by("parent__order"):
+        question = ans.parent
+        if question:
+            icon = question.icon or ""
+            label = question.label or question.text
+            lines.append(f"{icon} {label}: {ans.text}")
+        else:
+            lines.append(f"{ans.text}")
+
+    # Add pricing and other info
+    lines.append(f"💰 Narx: {session.final_price or 0}")
+    lines.append(f"♻️ Obmen: {'Bor' if session.obmen else 'Yo‘q'}")
+    lines.append(f"🚩 Manzil: {session.manzil or 'N/A'}")
+    lines.append(f"📞 Tel: {session.tel_raqam or 'N/A'}")
+
+    if session.user.username:
+        lines.append(f"👤 @{session.user.username}")
+
+    lines.append("\nTelefon adminga tegishli emas 🚩")
+    lines.append("Zaklat bilan savdo qilmang🫱🏻‍🫲🏽")
+    lines.append("@IS_telefonsavdo_bot")
+
+    return "\n".join(lines)
+
+
+@bot.callback_query_handler(func=lambda c: c.data.startswith("approve_price_"))
+def approve_price(call):
+    try:
+        session_id = int(call.data.split("_")[-1])
+        session = PricingSession.objects.get(id=session_id)
+
+        if session.is_posted:
+            bot.answer_callback_query(call.id, "Bu narx allaqachon e'lon qilingan ✅")
+            return
+
+        # mark as approved and posted
+        session.is_active = False
+        session.is_posted = True
+        session.save()
+
+        caption = build_channel_caption(session)
+
+        images = [img.file_id for img in session.images.all()[:4]]  # first 4 images
+        if images:
+            media = []
+            for i, file_id in enumerate(images):
+                if i == 0:
+                    media.append(InputMediaPhoto(file_id, caption=caption))
+                else:
+                    media.append(InputMediaPhoto(file_id))
+            bot.send_media_group(CHANNEL_ID, media)
+        else:
+            bot.send_message(CHANNEL_ID, caption)
+
+        # notify admin
+        bot.answer_callback_query(call.id, "✅ Narx kanalga e'lon qilindi")
+        bot.send_message(call.from_user.id, "Narx muvaffaqiyatli kanalga e'lon qilindi ✅")
+
+    except PricingSession.DoesNotExist:
+        bot.answer_callback_query(call.id, "❌ Session topilmadi")
+    except Exception as e:
+        bot.answer_callback_query(call.id, f"❌ Xatolik yuz berdi: {str(e)}")
+
+@bot.callback_query_handler(func=lambda c: c.data.startswith("reject_price_"))
+def reject_price(call):
+    session_id = int(call.data.split("_")[-1])
+    session = PricingSession.objects.get(id=session_id)
+    bot.send_message(
+        session.user.telegram_id,
+        "❌ Admin e'lonni rad etdi."
+    )
+    session.delete()
+
 @bot.message_handler(content_types=['text'])
 def handle_steps(message):
     tg_user = TgUser.objects.get(telegram_id=message.from_user.id)
+    session = PricingSession.objects.filter(user=tg_user).last()
     if message.text in ["❌ Bekor qilish", "⬅️ Orqaga qaytish"]:
         return
     try:
         ad = PhoneAd.objects.filter(user=tg_user, status='active').latest('created_at')
     except PhoneAd.DoesNotExist:
         ad = None
+    if session.step == 301:
+        try:
+            price = int(message.text.replace("$", ""))
+        except:
+            bot.send_message(message.chat.id, "❌ Narx noto‘g‘ri")
+            return
+        session.final_price = price
+        session.step = 300
+        session.save()
+        bot.send_message(
+            message.chat.id,
+            "📷 Telefon rasmlarini yuboring (kamida 4 ta)"
+        )
+        return
+    # OBMEN
+    if session.step == 302:
+        session.obmen = message.text.lower() in ["ha", "bor"]
+        session.step = 303
+        session.save()
+        bot.send_message(message.chat.id, "🚩 Manzilni kiriting")
+        return
+    # MANZIL
+    if session.step == 303:
+        session.manzil = message.text
+        session.step = 304
+        session.save()
+        bot.send_message(message.chat.id, "📞 Telefon raqamini yuboring")
+        return
+    # PHONE
+    if session.step == 304:
+        session.tel_raqam = message.text
+        session.step = 305
+        session.save()
+        bot.send_message(message.chat.id, "💳 To‘lov chekini yuboring")
+        return
     if tg_user.step == 2:
         if len(message.text) > 25:
             bot.reply_to(
@@ -469,7 +781,6 @@ def handle_steps(message):
         ad.save()
         tg_user.step = 12
         tg_user.save()
-
         # Ask payment
         kb = types.InlineKeyboardMarkup()
         kb.add(

@@ -1,5 +1,7 @@
 from telebot import types
 from django.utils.timezone import now
+from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup
+
 from bot.models import PricingNode, PricingSession
 
 
@@ -105,18 +107,34 @@ def show_result(call, bot):
     date_str = now().strftime("%d.%m.%Y")
     text = f"""
 📱 {session.model.text}
-💰 Estimated price: {price}$
-🕒 Price date: {date_str}
+💰 Taxminiy narx: {price}$
+🕒 Narxlash sanasi: {date_str}
 📝 Configuration
 {answers_text}
 """
+
+    session.is_active = False
+    session.save()
+    kb = types.InlineKeyboardMarkup()
+    kb.add(
+        types.InlineKeyboardButton(
+            "📢 Shu narxda e'lon berish",
+            callback_data=f"post_price:{session.id}"
+        )
+    )
+    kb.add(
+        types.InlineKeyboardButton(
+            "✏️ Narxni o‘zgartirish",
+            callback_data=f"change_price:{session.id}"
+        )
+    )
     bot.edit_message_text(
         text,
         call.message.chat.id,
-        call.message.message_id
+        call.message.message_id,
+        reply_markup = kb
     )
-    session.is_active = False
-    session.save()
+
 MODELS_PER_PAGE = 6
 
 def models_keyboard(page=0):
@@ -148,4 +166,38 @@ def models_keyboard(page=0):
         nav.append(types.InlineKeyboardButton("Keyingi ➡️", callback_data=f"models_page_{page+1}"))
     if nav:
         kb.row(*nav)
+    return kb
+
+PRICING_PACKAGES = {
+    "1": {"count": 1, "price": 5000},
+    "5": {"count": 5, "price": 20000},
+    "10": {"count": 10, "price": 35000},
+    "15": {"count": 15, "price": 50000},
+    "15d": {"days": 15, "price": 60000},
+    "30d": {"days": 30, "price": 100000},
+}
+
+PACKAGE_NAMES = {
+    "1": "1 marta",
+    "5": "5 marta",
+    "10": "10 marta",
+    "15": "15 marta",
+    "15d": "15 kun",
+    "30d": "30 kun",
+}
+
+def pricing_packages_keyboard():
+    kb = InlineKeyboardMarkup(row_width=2)
+    kb.add(
+        InlineKeyboardButton("1 ta narxlash", callback_data="pkg_1"),
+        InlineKeyboardButton("5 ta narxlash", callback_data="pkg_5"),
+    )
+    kb.add(
+        InlineKeyboardButton("10 ta narxlash", callback_data="pkg_10"),
+        InlineKeyboardButton("15 ta narxlash", callback_data="pkg_15"),
+    )
+    kb.add(
+        InlineKeyboardButton("15 kunlik", callback_data="pkg_15d"),
+        InlineKeyboardButton("30 kunlik", callback_data="pkg_30d"),
+    )
     return kb

@@ -1,6 +1,6 @@
 from django.db import models
+from django.utils.timezone import now
 from mptt.models import MPTTModel, TreeForeignKey
-from mptt.admin import DraggableMPTTAdmin
 
 class TgUser(models.Model):
     telegram_id = models.BigIntegerField(unique=True)
@@ -14,16 +14,32 @@ class TgUser(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Joined')
 
     step = models.IntegerField(default=0)
+    step_package = models.CharField(max_length=20, null=True, blank=True)
 
     deleted = models.BooleanField(default=False)
+    pricing_limit = models.IntegerField(default=0)
+    pricing_used = models.IntegerField(default=0)
+    pricing_expire = models.DateTimeField(null=True, blank=True)
+
+    def can_use_pricing(self):
+        # Agar subscription hali tugamagan bo‘lsa
+        if self.pricing_expire and now() < self.pricing_expire:
+            return True
+        # Subscription tugagan bo‘lsa uni o‘chirib yuboramiz
+        if self.pricing_expire and now() >= self.pricing_expire:
+            self.pricing_expire = None
+            self.pricing_limit = 0
+            self.pricing_used = 0
+            self.save()
+
+        # Limitli paketlarni tekshirish
+        return self.pricing_used < self.pricing_limit
+        # limitli paketlar
+        return self.pricing_used < self.pricing_limit
 
     def __str__(self):
         full_name = f"{self.first_name} {self.last_name or ''}".strip()
         return (full_name[:30] + '...') if len(full_name) > 30 else full_name
-
-from django.db import models
-
-from django.db import models
 
 
 class PhoneAd(models.Model):
@@ -145,3 +161,19 @@ class PricingSession(models.Model):
     is_active = models.BooleanField(default=True)
     step = models.IntegerField(default=0)
     price_preview = models.IntegerField(default=0)
+    final_price = models.IntegerField(null=True, blank=True)
+    obmen = models.BooleanField(null=True, blank=True)
+    manzil = models.CharField(max_length=255, blank=True)
+    tel_raqam = models.CharField(max_length=20, blank=True)
+    payment_image = models.CharField(max_length=255, blank=True, null=True)
+    is_paid = models.BooleanField(default=False)
+    is_posted = models.BooleanField(default=False)
+
+class PricingSessionImage(models.Model):
+    session = models.ForeignKey(
+        PricingSession,
+        on_delete=models.CASCADE,
+        related_name="images"
+    )
+    file_id = models.CharField(max_length=255)
+    created_at = models.DateTimeField(auto_now_add=True)
