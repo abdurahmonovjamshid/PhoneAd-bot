@@ -11,13 +11,12 @@ print("🧹 Old models clearing...")
 PricingNode.objects.filter(type="model").delete()
 
 
-def add_question(model, text, order, answers, allow_skip=False):
+def add_question(model, text, order, answers):
     q = PricingNode.objects.create(
         parent=model,
         type="question",
         text=text,
-        order=order,
-        allow_skip=allow_skip
+        order=order
     )
 
     for i, ans in enumerate(answers, start=1):
@@ -31,6 +30,7 @@ def add_question(model, text, order, answers, allow_skip=False):
 
 
 def create_model(name, price, order):
+
     print(f"📱 Creating {name}")
 
     model = PricingNode.objects.create(
@@ -40,129 +40,70 @@ def create_model(name, price, order):
         order=order
     )
 
-    # 1 MEMORY
+    # ⭐ CONDITION
     add_question(
         model,
-        "📦 Xotira hajmini tanlang",
+        "⭐ Holati",
         1,
         [
-            {"text": "64GB", "price": 0},
-            {"text": "128GB", "price": 40},
-            {"text": "256GB", "price": 90},
-            {"text": "512GB", "price": 180},
-            {"text": "1TB", "price": 300},
+            {"text": "5️⃣ Ideal (yangi kabi)", "price": 0},
+            {"text": "4️⃣ Juda yaxshi", "price": -40},
+            {"text": "3️⃣ O‘rtacha", "price": -90},
+            {"text": "2️⃣ Charchagan", "price": -160},
+            {"text": "1️⃣ Juda yomon", "price": -250},
         ]
     )
 
-    # 2 BATTERY
+    # 💾 MEMORY
     add_question(
         model,
-        "🔋 Batareya holati",
+        "💾 Xotira",
         2,
+        [
+            {"text": "64GB", "price": 0},
+            {"text": "128GB", "price": 50},
+            {"text": "256GB", "price": 120},
+            {"text": "512GB", "price": 220},
+            {"text": "1TB", "price": 350},
+        ]
+    )
+
+    # 🔋 BATTERY
+    add_question(
+        model,
+        "🔋 Batareya",
+        3,
         [
             {"text": "90-100%", "price": 0},
             {"text": "85-89%", "price": -30},
-            {"text": "80-84%", "price": -60},
-            {"text": "75-79%", "price": -100},
-            {"text": "75% dan past", "price": -150},
+            {"text": "80-84%", "price": -70},
+            {"text": "75-79%", "price": -120},
+            {"text": "75% dan past", "price": -180},
         ]
     )
 
-    # 3 SCREEN
+    # 🌍 REGION
     add_question(
         model,
-        "📱 Ekran holati",
-        3,
-        [
-            {"text": "Ideal ✨", "price": 0},
-            {"text": "Mayda chizilgan", "price": -25},
-            {"text": "Chuqur chizilgan", "price": -70},
-            {"text": "Yorilgan", "price": -200},
-        ]
-    )
-
-    # 4 FACE ID
-    add_question(
-        model,
-        "🔐 FaceID ishlaydimi?",
+        "🌍 Region",
         4,
         [
-            {"text": "Ha ishlaydi ✅", "price": 0},
-            {"text": "Ba'zan ishlaydi ⚠️", "price": -40},
-            {"text": "Umuman ishlamaydi ❌", "price": -120},
+            {"text": "🇺🇸 USA", "price": 0},
+            {"text": "🇪🇺 Europe", "price": 0},
+            {"text": "🇯🇵 Japan", "price": -20},
+            {"text": "🌏 Boshqa", "price": -40},
         ]
     )
 
-    # 5 CAMERA
+    # 📦 BOX
     add_question(
         model,
-        "📷 Kamera holati",
+        "📦 Karobkasi",
         5,
         [
-            {"text": "Ideal", "price": 0},
-            {"text": "Fokus muammosi", "price": -40},
-            {"text": "Ishlamaydi", "price": -150},
-        ]
-    )
-
-    # 6 BACK
-    add_question(
-        model,
-        "🔎 Orqa korpus holati",
-        6,
-        [
-            {"text": "Ideal", "price": 0},
-            {"text": "Chizilgan", "price": -20},
-            {"text": "Yorilgan", "price": -120},
-        ]
-    )
-
-    # 7 BOX
-    add_question(
-        model,
-        "📦 Qutisi bormi?",
-        7,
-        [
-            {"text": "Ha bor", "price": 20},
+            {"text": "Bor", "price": 25},
             {"text": "Yo‘q", "price": 0},
         ]
-    )
-
-    # 8 COUNTRY
-    add_question(
-        model,
-        "🌍 Telefon qaysi region?",
-        8,
-        [
-            {"text": "USA 🇺🇸", "price": 0},
-            {"text": "Japan 🇯🇵", "price": 0},
-            {"text": "Europe 🇪🇺", "price": 0},
-            {"text": "Boshqa", "price": -20},
-        ]
-    )
-
-    # 9 SIM LOCK
-    add_question(
-        model,
-        "📶 SIM lock bormi?",
-        9,
-        [
-            {"text": "Factory unlocked", "price": 0},
-            {"text": "Carrier lock", "price": -80},
-        ]
-    )
-
-    # 10 EXTRA
-    add_question(
-        model,
-        "📝 Qo‘shimcha holat",
-        10,
-        [
-            {"text": "Juda toza ✨", "price": 40},
-            {"text": "Oddiy ishlatilgan", "price": 0},
-            {"text": "Kuchli ishlatilgan", "price": -80},
-        ],
-        allow_skip=True
     )
 
 

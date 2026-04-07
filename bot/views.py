@@ -212,6 +212,7 @@ def change_price(call):
     session_id = int(call.data.split(":")[1])
     session = PricingSession.objects.get(id=session_id)
     session.step = 301
+    session.is_active = True
     session.save()
     bot.send_message(
         call.message.chat.id,
@@ -364,7 +365,57 @@ def handle_photos(message):
                 f"🚩 Manzil: {session.manzil}\n"
                 f"📞 Tel: {session.tel_raqam}"
             )
+            bot.send_message(
+                message.chat.id,
+                "✅ Chek yuborildi. Admin tasdiqlashini kuting."
+            )
+            media = []
+            for i, photo in enumerate(session.images.all()):
+                if i == 0:
+                    media.append(
+                        InputMediaPhoto(
+                            photo,
+                            caption=build_channel_caption(session),
+                            parse_mode="HTML"
+                        )
+                    )
+                else:
+                    media.append(InputMediaPhoto(photo))
+
+            media = []
+            images = list(session.images.all())  # get all images
+
+            if not images:
+                return  # nothing to send
+
+            # Prepare media group
+            for i, img in enumerate(images):
+                if i == 0:
+                    media.append(
+                        InputMediaPhoto(
+                            img.file_id,
+                            caption=build_channel_caption(session),  # your function
+                            parse_mode="HTML"
+                        )
+                    )
+                else:
+                    media.append(InputMediaPhoto(img.file_id))
+
             for admin in ADMINS:
+                if len(images) == 1:
+                    # only 1 image, send as single photo
+                    preview_message_id = bot.send_photo(
+                        admin,
+                        images[0].file_id,
+                        caption=build_channel_caption(session),
+                        parse_mode="HTML"
+                    ).message_id
+                else:
+                    # multiple images, send media group
+                    preview_msgs = bot.send_media_group(admin, media)
+                    preview_message_id = preview_msgs[0].message_id
+
+                # inline keyboard
                 kb = InlineKeyboardMarkup()
                 kb.add(
                     InlineKeyboardButton(
@@ -376,16 +427,24 @@ def handle_photos(message):
                         callback_data=f"reject_price_{session.id}"
                     )
                 )
+
+                # send user info
+                user_text = (
+                    "👤 <b>Foydalanuvchi</b>\n\n"
+                    f"Ism: {tg_user.first_name}\n"
+                    f"Username: @{tg_user.username if tg_user.username else '-'}\n"
+                    f"ID: <code>{tg_user.telegram_id}</code>\n\n"
+                    f"💰 Narx: {session.final_price}$"
+                )
+
                 bot.send_photo(
                     admin,
-                    file_id,
-                    caption=text,
-                    reply_markup=kb
+                    images[0].file_id,
+                    caption=user_text,
+                    parse_mode="HTML",
+                    reply_markup=kb,
+                    reply_to_message_id=preview_message_id
                 )
-            bot.send_message(
-                message.chat.id,
-                "✅ Chek yuborildi. Admin tasdiqlashini kuting."
-            )
             return
     if tg_user.step == 200:
         pkg_key = tg_user.step_package
