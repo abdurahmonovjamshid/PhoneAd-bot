@@ -28,7 +28,7 @@ def ask_question(chat_id, step, bot):
 
 def ask_questions(call, bot):
     session = PricingSession.objects.filter(
-        user__telegram_id=call.from_user.id
+        user__telegram_id=call.from_user.id, is_active=True
     ).last()
     q = get_next_question(session)
     if not q:
@@ -94,7 +94,7 @@ def answers_keyboard(question):
 
 def show_result(call, bot):
     session = PricingSession.objects.filter(
-        user__telegram_id=call.from_user.id
+        user__telegram_id=call.from_user.id, is_active=True
     ).last()
     price = calculate_preview(session)
     lines = []

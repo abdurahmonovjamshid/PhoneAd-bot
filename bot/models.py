@@ -3,7 +3,7 @@ from django.utils.timezone import now
 from mptt.models import MPTTModel, TreeForeignKey
 
 class TgUser(models.Model):
-    telegram_id = models.BigIntegerField(unique=True)
+    telegram_id = models.BigIntegerField(unique=True, db_index=True)
     first_name = models.CharField(max_length=255)
     last_name = models.CharField(max_length=255, blank=True, null=True)
     username = models.CharField(max_length=255, blank=True, null=True)
@@ -22,19 +22,13 @@ class TgUser(models.Model):
     pricing_expire = models.DateTimeField(null=True, blank=True)
 
     def can_use_pricing(self):
-        # Agar subscription hali tugamagan bo‘lsa
         if self.pricing_expire and now() < self.pricing_expire:
             return True
-        # Subscription tugagan bo‘lsa uni o‘chirib yuboramiz
         if self.pricing_expire and now() >= self.pricing_expire:
             self.pricing_expire = None
             self.pricing_limit = 0
             self.pricing_used = 0
             self.save()
-
-        # Limitli paketlarni tekshirish
-        return self.pricing_used < self.pricing_limit
-        # limitli paketlar
         return self.pricing_used < self.pricing_limit
 
     def __str__(self):
@@ -69,7 +63,7 @@ class PhoneAd(models.Model):
 
     # Status va vaqt
     status = models.CharField(max_length=10, choices=SELL_STATUS_CHOICES, default='active')
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
     is_published = models.BooleanField(default=False)
 

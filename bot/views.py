@@ -99,13 +99,13 @@ def go_back(call):
     session.save()
     last_answer = session.answers.last()
     if last_answer:
-        last_answer.delete()
+        session.answers.remove(last_answer)
     ask_questions(call, bot)
 
 @bot.callback_query_handler(func=lambda c: c.data == "skip")
 def skip_question(call):
     session = PricingSession.objects.filter(
-        user__telegram_id=call.from_user.id
+        user__telegram_id=call.from_user.id, is_active=True
     ).last()
     session.step += 1
     session.save()
@@ -128,7 +128,7 @@ def choose_model(message):
         return
     user.pricing_used += 1
     user.save()
-    PricingSession.objects.filter(user=user).delete()
+    PricingSession.objects.filter(user=user, is_active=True).delete()
     bot.send_message(
         message.chat.id,
         "📱 Telefon modelini tanlang:",
@@ -200,6 +200,7 @@ def post_with_price(call):
     session = PricingSession.objects.get(id=session_id)
     session.final_price = session.price_preview
     session.step = 300
+    session.is_active = True
     session.save()
     bot.send_message(
         call.message.chat.id,
@@ -326,15 +327,13 @@ def handle_forwarded_post(message):
         else:
             bot.reply_to(message, "ℹ️ Bu postda #Продается yo'q.")
 
-
 @bot.message_handler(content_types=['photo'])
 def handle_photos(message):
     tg_user = TgUser.objects.get(telegram_id=message.from_user.id)
-    session = PricingSession.objects.filter(user=tg_user).last()
+    file_id = message.photo[-1].file_id
+    session = PricingSession.objects.filter(user=tg_user, is_active=True).last()
     if session:
-        # PHONE PHOTOS
         if session.step == 300:
-            file_id = message.photo[-1].file_id
             PricingSessionImage.objects.create(
                 session=session,
                 file_id=file_id
@@ -343,6 +342,7 @@ def handle_photos(message):
             if count >= 4:
                 session.step = 302
                 session.save()
+
                 bot.send_message(
                     message.chat.id,
                     "♻️ Obmen bormi? (Ha / Yo‘q)"
@@ -353,9 +353,7 @@ def handle_photos(message):
                     f"📷 {count} ta rasm qabul qilindi. Yana yuboring."
                 )
             return
-        # PAYMENT CHECK
         if session.step == 305:
-            file_id = message.photo[-1].file_id
             session.payment_image = file_id
             session.step = 306
             session.save()
@@ -389,14 +387,10 @@ def handle_photos(message):
                 "✅ Chek yuborildi. Admin tasdiqlashini kuting."
             )
             return
-
-    if tg_user.step == 200 and message.photo:
-        file_id = message.photo[-1].file_id
+    if tg_user.step == 200:
         pkg_key = tg_user.step_package
         username = f"@{tg_user.username}" if tg_user.username else tg_user.first_name
         package_name = PACKAGE_NAMES.get(pkg_key, pkg_key)
-
-        # Caption for admins
         caption = (
             "💳 <b>Yangi to'lov cheki</b>\n\n"
             f"👤 <b>Foydalanuvchi:</b> {username}\n"
@@ -404,18 +398,22 @@ def handle_photos(message):
             f"📦 <b>Paket:</b> {package_name}\n"
             f"⏰ <b>Vaqt:</b> {now().strftime('%d-%m-%Y %H:%M')}"
         )
-        # ✅ Send confirmation to user immediately
         bot.send_message(
             message.chat.id,
             "📩 Sizning to'lov chek qabul qilindi.\n"
             "⏳ Admin tasdiqlashi kutilmoqda."
         )
-        # Send photo to admins
         for admin in ADMINS:
             kb = InlineKeyboardMarkup()
             kb.add(
-                InlineKeyboardButton("✅ Tasdiqlash", callback_data=f"approve_{tg_user.id}_{pkg_key}"),
-                InlineKeyboardButton("❌ Rad etish", callback_data=f"reject_{tg_user.id}")
+                InlineKeyboardButton(
+                    "✅ Tasdiqlash",
+                    callback_data=f"approve_{tg_user.id}_{pkg_key}"
+                ),
+                InlineKeyboardButton(
+                    "❌ Rad etish",
+                    callback_data=f"reject_{tg_user.id}"
+                )
             )
             bot.send_photo(
                 admin,
@@ -424,18 +422,20 @@ def handle_photos(message):
                 parse_mode="HTML",
                 reply_markup=kb
             )
-    else:
-        bot.send_message(
-            message.chat.id,
-            "⚠️ Iltimos, to'lov chekni yuboring."
-        )
+
+        return
     if tg_user.step == 13:
         try:
-            ad = PhoneAd.objects.filter(user=tg_user, status='active').latest('created_at')
+            ad = PhoneAd.objects.filter(
+                user=tg_user,
+                status='active'
+            ).latest('created_at')
         except PhoneAd.DoesNotExist:
-            bot.send_message(message.chat.id, "❌ Hech qanday e'lon topilmadi.")
+            bot.send_message(
+                message.chat.id,
+                "❌ Hech qanday e'lon topilmadi."
+            )
             return
-        file_id = message.photo[-1].file_id
         ad.payment_image = file_id
         ad.is_paid = True
         ad.save()
@@ -447,34 +447,70 @@ def handle_photos(message):
             media = []
             for i, img in enumerate(photos):
                 if i == 0:
-                    media.append(types.InputMediaPhoto(media=img.file_id, caption=caption, parse_mode='HTML'))
+                    media.append(
+                        types.InputMediaPhoto(
+                            media=img.file_id,
+                            caption=caption,
+                            parse_mode='HTML'
+                        )
+                    )
                 else:
-                    media.append(types.InputMediaPhoto(media=img.file_id))
+                    media.append(
+                        types.InputMediaPhoto(media=img.file_id)
+                    )
             bot.send_media_group(message.chat.id, media)
         else:
-            bot.send_message(message.chat.id, caption, parse_mode='HTML')
-
+            bot.send_message(
+                message.chat.id,
+                caption,
+                parse_mode='HTML'
+            )
         kb = types.InlineKeyboardMarkup()
         kb.add(
-            types.InlineKeyboardButton("✅ Adminga yuborish", callback_data=f"ad_user_send:{ad.id}"),
-            types.InlineKeyboardButton("🗑 O‘chirib yuborish", callback_data=f"ad_user_delete:{ad.id}")
+            types.InlineKeyboardButton(
+                "✅ Adminga yuborish",
+                callback_data=f"ad_user_send:{ad.id}"
+            ),
+            types.InlineKeyboardButton(
+                "🗑 O‘chirib yuborish",
+                callback_data=f"ad_user_delete:{ad.id}"
+            )
         )
-        bot.send_message(message.chat.id, "E'lon ma'lumotlarini tasdiqlang:", reply_markup=kb)
+        bot.send_message(
+            message.chat.id,
+            "E'lon ma'lumotlarini tasdiqlang:",
+            reply_markup=kb
+        )
         return
-    if tg_user.step != 1:
-        bot.send_message(message.chat.id, "📌 Iltimos, hozir rasm emas, so‘ralgan ma'lumotni yuboring.")
+    if tg_user.step != 1 and not session:
+        bot.send_message(
+            message.chat.id,
+            "📌 Iltimos, hozir rasm emas, so‘ralgan ma'lumotni yuboring."
+        )
         return
-    ad = PhoneAd.objects.filter(user=tg_user, status='active').latest('created_at')
-    file_id = message.photo[-1].file_id
-    PhoneAdImage.objects.create(ad=ad, file_id=file_id)
+
+    ad = PhoneAd.objects.filter(
+        user=tg_user,
+        status='active'
+    ).latest('created_at')
+    PhoneAdImage.objects.create(
+        ad=ad,
+        file_id=file_id
+    )
     image_count = ad.images.count()
     if image_count >= 4:
-        bot.send_message(message.chat.id, f"✅ {image_count} ta rasm qabul qilindi.")
+        bot.send_message(
+            message.chat.id,
+            f"✅ {image_count} ta rasm qabul qilindi."
+        )
         tg_user.step = 2
         tg_user.save()
         ask_question(message.chat.id, 2, bot)
     else:
-        bot.send_message(message.chat.id, f"📷 {image_count} ta rasm qo‘shildi. Yana rasm yuboring.")
+        bot.send_message(
+            message.chat.id,
+            f"📷 {image_count} ta rasm qo‘shildi. Yana rasm yuboring."
+        )
 
 @bot.callback_query_handler(func=lambda c: c.data.startswith("approve_") and not c.data.startswith("approve_price_"))
 def approve_payment(call):
@@ -663,14 +699,14 @@ def reject_price(call):
 @bot.message_handler(content_types=['text'])
 def handle_steps(message):
     tg_user = TgUser.objects.get(telegram_id=message.from_user.id)
-    session = PricingSession.objects.filter(user=tg_user).last()
+    session = PricingSession.objects.filter(user=tg_user, is_active=True).last()
     if message.text in ["❌ Bekor qilish", "⬅️ Orqaga qaytish"]:
         return
     try:
         ad = PhoneAd.objects.filter(user=tg_user, status='active').latest('created_at')
     except PhoneAd.DoesNotExist:
         ad = None
-    if session.step == 301:
+    if session and session.step == 301:
         try:
             price = int(message.text.replace("$", ""))
         except:
@@ -685,21 +721,21 @@ def handle_steps(message):
         )
         return
     # OBMEN
-    if session.step == 302:
+    if session and session.step == 302:
         session.obmen = message.text.lower() in ["ha", "bor"]
         session.step = 303
         session.save()
         bot.send_message(message.chat.id, "🚩 Manzilni kiriting")
         return
     # MANZIL
-    if session.step == 303:
+    if session and session.step == 303:
         session.manzil = message.text
         session.step = 304
         session.save()
         bot.send_message(message.chat.id, "📞 Telefon raqamini yuboring")
         return
     # PHONE
-    if session.step == 304:
+    if session and session.step == 304:
         session.tel_raqam = message.text
         session.step = 305
         session.save()
@@ -955,7 +991,7 @@ def run_broadcast(request):
     if task.total == 0:
         task.total = TgUser.objects.count()
         task.save(update_fields=["total"])
-    users = TgUser.objects.filter(id__gt=task.sent + task.failed).order_by("id")[:BATCH_SIZE]
+    users = TgUser.objects.filter(deleted=False).order_by("id")[task.sent:task.sent+BATCH_SIZE]
     if not users:
         task.finished = True
         task.finished_at = now()
