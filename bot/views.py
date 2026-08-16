@@ -568,7 +568,7 @@ def handle_photos(message):
 
                 bot.send_photo(
                     admin,
-                    images[0].file_id,
+                    session.payment_image,
                     caption=user_text,
                     parse_mode="HTML",
                     reply_markup=kb,
