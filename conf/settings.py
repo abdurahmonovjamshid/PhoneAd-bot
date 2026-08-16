@@ -21,8 +21,8 @@ env.read_env()
 TELEGRAM_BOT_TOKEN = env.str('TELEGRAM_BOT_TOKEN')
 ADMINS = env.list('ADMINS')
 CHANNEL_ID = env.list('CHANNEL_ID')
-CHANNEL_LINKS = env.list('CHANNEL_LINKS', default=[])
-CHANNEL_NAMES = env.list('CHANNEL_NAMES', default=[])
+REQUIRED_CHANNEL_IDS = env.list('REQUIRED_CHANNEL_IDS', default=[])
+REQUIRED_CHANNEL_LINKS = env.list('REQUIRED_CHANNEL_LINKS', default=[])
 
 HOST = env.str('HOST')
 

@@ -4,7 +4,7 @@ from datetime import timedelta
 import telebot
 from django.utils.timezone import now
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, InputMediaPhoto
-from conf.settings import HOST, TELEGRAM_BOT_TOKEN, ADMINS, CHANNEL_ID, CHANNEL_LINKS, CHANNEL_NAMES
+from conf.settings import HOST, TELEGRAM_BOT_TOKEN, ADMINS, CHANNEL_ID, REQUIRED_CHANNEL_IDS, REQUIRED_CHANNEL_LINKS
 import json
 import traceback
 from django.http import HttpResponse
@@ -29,8 +29,6 @@ def is_admin(user_id):
 
 
 def channel_label(index, channel_id):
-    if index < len(CHANNEL_NAMES) and CHANNEL_NAMES[index]:
-        return CHANNEL_NAMES[index]
     if channel_id in CHANNEL_TITLE_CACHE:
         return CHANNEL_TITLE_CACHE[channel_id]
     try:
@@ -45,16 +43,17 @@ def channel_label(index, channel_id):
 
 
 def subscription_keyboard(missing_channels=None):
-    missing_channels = missing_channels or list(enumerate(CHANNEL_ID))
+    missing_channels = missing_channels or list(enumerate(REQUIRED_CHANNEL_IDS))
     kb = InlineKeyboardMarkup()
     for index, channel_id in missing_channels:
-        if index < len(CHANNEL_LINKS) and CHANNEL_LINKS[index]:
+        if index < len(REQUIRED_CHANNEL_LINKS) and REQUIRED_CHANNEL_LINKS[index]:
             kb.add(
                 InlineKeyboardButton(
                     channel_label(index, channel_id),
-                    url=CHANNEL_LINKS[index]
+                    url=REQUIRED_CHANNEL_LINKS[index]
                 )
             )
+
     kb.add(
         InlineKeyboardButton(
             "✅ Tekshirish",
@@ -66,7 +65,7 @@ def subscription_keyboard(missing_channels=None):
 
 def get_missing_subscriptions(user_id):
     missing = []
-    for index, channel_id in enumerate(CHANNEL_ID):
+    for index, channel_id in enumerate(REQUIRED_CHANNEL_IDS):
         try:
             member = bot.get_chat_member(channel_id, user_id)
             if member.status not in SUBSCRIBED_STATUSES:
@@ -77,7 +76,7 @@ def get_missing_subscriptions(user_id):
 
 
 def ensure_subscribed(chat_id, user_id):
-    if not CHANNEL_ID or is_admin(user_id):
+    if not REQUIRED_CHANNEL_IDS or is_admin(user_id):
         return True
     missing = get_missing_subscriptions(user_id)
     if not missing:
