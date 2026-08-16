@@ -22,6 +22,7 @@ bot = TeleBot(TELEGRAM_BOT_TOKEN, threaded=False)
 
 SUBSCRIBED_STATUSES = {"member", "administrator", "creator"}
 CHANNEL_TITLE_CACHE = {}
+SUBSCRIPTION_MESSAGE_CACHE = {}
 
 
 def is_admin(user_id):
@@ -63,6 +64,16 @@ def subscription_keyboard(missing_channels=None):
     return kb
 
 
+def delete_subscription_message(chat_id, fallback_message_id=None):
+    message_id = SUBSCRIPTION_MESSAGE_CACHE.pop(chat_id, None) or fallback_message_id
+    if not message_id:
+        return
+    try:
+        bot.delete_message(chat_id, message_id)
+    except Exception:
+        pass
+
+
 def get_missing_subscriptions(user_id):
     missing = []
     for index, channel_id in enumerate(REQUIRED_CHANNEL_IDS):
@@ -81,11 +92,13 @@ def ensure_subscribed(chat_id, user_id):
     missing = get_missing_subscriptions(user_id)
     if not missing:
         return True
-    bot.send_message(
+    delete_subscription_message(chat_id)
+    sent_message = bot.send_message(
         chat_id,
         "Botdan foydalanish uchun avval kanallarga obuna bo'ling, keyin Tekshirish tugmasini bosing.",
         reply_markup=subscription_keyboard(missing)
     )
+    SUBSCRIPTION_MESSAGE_CACHE[chat_id] = sent_message.message_id
     return False
 
 
@@ -204,19 +217,12 @@ def start_handler(message):
 def check_subscription(call):
     if ensure_subscribed(call.message.chat.id, call.from_user.id):
         bot.answer_callback_query(call.id, "Obuna tasdiqlandi.")
+        delete_subscription_message(call.message.chat.id, call.message.message_id)
         bot.send_message(
             call.message.chat.id,
             "Obuna tasdiqlandi. Botdan foydalanishingiz mumkin.",
             reply_markup=main_menu()
         )
-        try:
-            bot.edit_message_reply_markup(
-                call.message.chat.id,
-                call.message.message_id,
-                reply_markup=None
-            )
-        except Exception:
-            pass
     else:
         bot.answer_callback_query(call.id, "Hali barcha kanallarga obuna bo'lmagansiz.")
 
